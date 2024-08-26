@@ -8,7 +8,7 @@ local mod = {}
 --- Initial size of the drawer, in lines or columns.
 --- @field size integer
 --- Position of the drawer.
---- @field position 'left' | 'right' | 'top' | 'bottom'
+--- @field position 'left' | 'right' | 'above' | 'below'
 --- Called before a buffer is created. This is called very rarely.
 --- @field on_will_create_buffer? fun(bufname: string): nil
 --- Called after a buffer is created. This is called very rarely.
@@ -39,6 +39,11 @@ local mod = {}
 --- @field count integer
 --- The names of all buffers that have been created.
 --- @field buffers string[]
+--- The internal ID of the drawer.
+--- @field index integer
+--- The windows belonging to the drawer.
+---- @field winids integer[]
+--- @field windows_and_buffers table<integer, integer>
 
 --- @type DrawerInstance[]
 local instances = {}
@@ -55,15 +60,9 @@ local function index_of(t, value)
   return -1
 end
 
---- @return integer[]
-local function get_windows_in_tab()
-  local tabinfo = vim.fn.gettabinfo(vim.fn.tabpagenr())[1]
-
-  if tabinfo == nil then
-    return {}
-  end
-
-  return tabinfo.windows
+--- @param bufname string
+local function get_bufnr_from_bufname(bufname)
+  return vim.fn.bufnr(bufname)
 end
 
 --- Create a new drawer.
@@ -85,11 +84,14 @@ function mod.create_drawer(opts)
 
     --- @type DrawerState
     state = {
+      index = #instances,
       is_open = false,
       size = opts.size,
       previous_bufname = '',
       count = 0,
       buffers = {},
+      -- winids = {},
+      windows_and_buffers = {},
     },
   }
 
@@ -125,7 +127,7 @@ function mod.create_drawer(opts)
     local bufname = ''
     if opts.mode == 'previous_or_new' then
       local previous_buffer_exists = instance.state.previous_bufname ~= ''
-        and vim.fn.bufnr(instance.state.previous_bufname) ~= -1
+        and get_bufnr_from_bufname(instance.state.previous_bufname) ~= -1
 
       bufname = instance.state.previous_bufname
       if not previous_buffer_exists then
@@ -139,60 +141,92 @@ function mod.create_drawer(opts)
 
     instance.state.is_open = true
 
-    local winnr = instance.get_winnr()
+    local current_winid = vim.api.nvim_get_current_win()
+    local winid = instance.get_winid()
 
-    if winnr == -1 then
-      local cmd = ''
-      if instance.opts.position == 'left' then
-        cmd = 'topleft vertical '
-      elseif instance.opts.position == 'right' then
-        cmd = 'botright vertical '
-      elseif instance.opts.position == 'top' then
-        cmd = 'topleft '
-      elseif instance.opts.position == 'bottom' then
-        cmd = 'botright '
-      end
-
+    if winid == -1 then
       try_callback('on_will_open_split', bufname)
 
-      vim.cmd(
-        cmd
-          .. instance.state.size
-          .. 'new | setlocal nobuflisted | setlocal noswapfile'
+      local buffer = vim.api.nvim_create_buf(false, true)
+      winid = vim.api.nvim_open_win(
+        buffer,
+        -- Intentionally focus the window after creating it, that makes it
+        -- easier for people to actually integrate, vs using the api themselves
+        -- with winids / bufnrs.
+        true,
+        {
+          win = -1,
+          split = instance.opts.position,
+
+          width = (
+            instance.opts.position == 'left'
+            or instance.opts.position == 'right'
+          )
+              and instance.state.size
+            or nil,
+          height = (
+            instance.opts.position == 'above'
+            or instance.opts.position == 'below'
+          )
+              and instance.state.size
+            or nil,
+        }
       )
+      vim.api.nvim_win_set_var(winid, 'nvim-drawer-info', {
+        bufname_prefix = instance.opts.bufname_prefix,
+        index = instance.state.index,
+      })
 
       try_callback('on_did_open_split', bufname)
     else
-      vim.cmd(winnr .. 'wincmd w')
+      instance.focus()
 
       if opts.mode == 'new' then
         vim.cmd('enew | setlocal nobuflisted | setlocal noswapfile')
       end
     end
 
-    instance.switch_window_to_buffer(bufname)
+    instance.switch_window_to_buffer(winid, bufname)
 
     if not opts.focus then
-      vim.cmd('wincmd p')
+      vim.api.nvim_set_current_win(current_winid)
     end
   end
 
   --- Switch the current window to a buffer and prepare it as a drawer.
   --- @param bufname string
-  function instance.switch_window_to_buffer(bufname)
-    local bufnr = vim.fn.bufnr(bufname)
+  function instance.switch_window_to_buffer(winid, bufname)
+    local bufnr = get_bufnr_from_bufname(bufname)
 
-    try_callback('on_will_open_buffer', bufname)
+    try_callback('on_will_open_buffer', {
+      winid = winid,
+      bufname = bufname,
+    })
 
     if bufnr == -1 then
-      try_callback('on_will_create_buffer', bufname)
+      bufnr = vim.api.nvim_buf_get_number(0)
+      try_callback('on_will_create_buffer', {
+        winid = winid,
+        bufname = bufname,
+      })
 
-      vim.cmd('file ' .. bufname)
+      vim.api.nvim_buf_set_name(bufnr, bufname)
 
-      try_callback('on_did_create_buffer', bufname)
+      vim.api.nvim_win_set_buf(winid, bufnr)
+      try_callback('on_did_create_buffer', {
+        winid = winid,
+        bufname = bufname,
+        bufnr = bufnr,
+      })
     else
-      vim.cmd('buffer ' .. bufname)
+      vim.api.nvim_win_set_buf(winid, bufnr)
     end
+
+    -- if not vim.list_contains(instance.state.winids, winid) then
+    --   table.insert(instance.state.winids, winid)
+    -- end
+
+    instance.state.windows_and_buffers[winid] = bufnr
 
     vim.opt_local.bufhidden = 'hide'
     vim.opt_local.buflisted = false
@@ -213,7 +247,11 @@ function mod.create_drawer(opts)
     end
     instance.state.previous_bufname = bufname
 
-    try_callback('on_did_open_buffer', bufname)
+    try_callback('on_did_open_buffer', {
+      winid = winid,
+      bufname = bufname,
+      bufnr = bufnr,
+    })
   end
 
   --- Navigate to the next or previous buffer.
@@ -226,9 +264,9 @@ function mod.create_drawer(opts)
   --- ```
   --- @param distance integer
   function instance.go(distance)
-    local winnr = instance.get_winnr()
+    local winid = instance.get_winid()
 
-    if winnr == -1 then
+    if winid == -1 then
       return
     end
 
@@ -247,8 +285,7 @@ function mod.create_drawer(opts)
     local next_bufname =
       instance.state.buffers[(next_index % #instance.state.buffers) + 1]
 
-    instance.focus()
-    instance.switch_window_to_buffer(next_bufname)
+    instance.switch_window_to_buffer(winid, next_bufname)
   end
 
   --- @class DrawerCloseOptions
@@ -269,18 +306,19 @@ function mod.create_drawer(opts)
 
     instance.state.is_open = false
 
-    local winnr = instance.get_winnr()
+    local winid = instance.get_winid()
 
-    if winnr ~= -1 then
-      if opts.save_size then
-        instance.state.size = instance.get_size()
-      end
+    if winid == -1 then
+      return
     end
 
-    instance.focus_and_return(function()
-      vim.cmd('close')
-      try_callback('on_did_close')
-    end)
+    if opts.save_size then
+      vim.print('save_size', instance.get_size())
+      instance.state.size = instance.get_size()
+    end
+
+    vim.api.nvim_win_hide(winid)
+    try_callback('on_did_close')
   end
 
   --- @class DrawerToggleOptions
@@ -307,9 +345,9 @@ function mod.create_drawer(opts)
   --- Focus the drawer if it's open, otherwise toggle it, and give it focus
   --- when it is opened.
   function instance.focus_or_toggle()
-    local winnr = instance.get_winnr()
+    local winid = instance.get_winid()
 
-    if winnr == -1 then
+    if winid == -1 then
       instance.open({ focus = true })
     else
       if instance.is_foucsed() then
@@ -320,11 +358,11 @@ function mod.create_drawer(opts)
     end
   end
 
-  --- Get the window number of the drawer. Returns `-1` if the drawer is not
+  --- Get the window id of the drawer. Returns `-1` if the drawer is not
   --- open.
-  function instance.get_winnr()
-    for _, w in ipairs(vim.fn.range(1, vim.fn.winnr('$'))) do
-      if instance.is_buffer(vim.fn.bufname(vim.fn.winbufnr(w))) then
+  function instance.get_winid()
+    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if instance.is_window(w) then
         return w
       end
     end
@@ -334,60 +372,51 @@ function mod.create_drawer(opts)
 
   --- Focus the drawer.
   function instance.focus()
-    local winnr = instance.get_winnr()
-
-    if winnr == -1 then
+    local winid = instance.get_winid()
+    if winid == -1 then
       return
     end
 
-    vim.cmd(winnr .. 'wincmd w')
+    vim.api.nvim_set_current_win(winid)
   end
 
   --- Check if the drawer is focused.
   function instance.is_foucsed()
-    local winnr = instance.get_winnr()
-
-    if winnr == -1 then
+    local winid = instance.get_winid()
+    if winid == -1 then
       return false
     end
 
-    return vim.fn.winnr() == winnr
+    return vim.api.nvim_get_current_win() == winid
   end
 
   --- Helper function to focus the drawer, run a callback, and return focus to
   --- the previous window.
   --- @param callback fun()
   function instance.focus_and_return(callback)
-    local winnr = instance.get_winnr()
-
-    if winnr == -1 then
+    local winid = instance.get_winid()
+    if winid == -1 then
       return
     end
 
-    instance.focus()
+    local current_winid = vim.api.nvim_get_current_win()
+    vim.api.nvim_set_current_win(winid)
     callback()
-    vim.cmd('wincmd p')
+    vim.api.nvim_set_current_win(current_winid)
   end
 
   --- Get the size of the drawer in lines or columns.
   function instance.get_size()
-    local winnr = instance.get_winnr()
-
-    if winnr == -1 then
+    local winid = instance.get_winid()
+    if winid == -1 then
       return 0
     end
 
-    local size = 0
-
-    instance.focus_and_return(function()
-      size = vim.fn.winheight(0)
-
-      if
-        instance.opts.position == 'left' or instance.opts.position == 'right'
-      then
-        size = vim.fn.winwidth(0)
-      end
-    end)
+    local size = (
+      (instance.opts.position == 'left' or instance.opts.position == 'right')
+        and vim.api.nvim_win_get_width(winid)
+      or vim.api.nvim_win_get_height(winid)
+    ) or 0
 
     return size
   end
@@ -397,6 +426,11 @@ function mod.create_drawer(opts)
   --- @param bufname string
   function instance.is_buffer(bufname)
     return string.find(bufname, instance.opts.bufname_prefix) ~= nil
+  end
+
+  function instance.is_window(winid)
+    return instance.state.windows_and_buffers[winid] ~= nil
+    -- return vim.list_contains(instance.state.winids, winid)
   end
 
   table.insert(instances, instance)
@@ -409,6 +443,18 @@ local drawer_augroup = vim.api.nvim_create_augroup('nvim-drawer', {
 })
 
 function mod.setup(_)
+  vim.keymap.set('n', '<leader>do', function()
+    for _, instance in ipairs(instances) do
+      vim.print({
+        opts = instance.opts,
+        state = instance.state,
+        size = instance.get_size(),
+        winid = instance.get_winid(),
+        is_foucsed = instance.is_foucsed(),
+      })
+    end
+  end, { noremap = true })
+
   vim.api.nvim_create_autocmd('TabEnter', {
     desc = 'nvim-drawer: Restore drawers',
     group = drawer_augroup,
@@ -418,19 +464,15 @@ function mod.setup(_)
           instance.close({ save_size = false })
           instance.open({ focus = false })
 
-          instance.focus_and_return(function()
-            local cmd = ''
-            if
-              instance.opts.position == 'left'
-              or instance.opts.position == 'right'
-            then
-              cmd = 'vertical resize '
-            else
-              cmd = 'resize '
-            end
-
-            vim.cmd(cmd .. instance.state.size)
-          end)
+          local winid = instance.get_winid()
+          if
+            instance.opts.position == 'left'
+            or instance.opts.position == 'right'
+          then
+            vim.api.nvim_win_set_width(winid, instance.state.size)
+          else
+            vim.api.nvim_win_set_height(winid, instance.state.size)
+          end
         else
           instance.close({ save_size = false })
         end
@@ -454,6 +496,10 @@ function mod.setup(_)
     desc = 'nvim-drawer: Cleanup when buffer is wiped out',
     group = drawer_augroup,
     callback = function(event)
+      vim.print({
+        event = event,
+        winid = vim.fn.bufwinid(event.buf),
+      })
       local bufname = event.file
       for _, instance in ipairs(instances) do
         if instance.is_buffer(bufname) then
@@ -485,24 +531,23 @@ function mod.setup(_)
     desc = 'nvim-drawer: Close tab when all non-drawers are closed',
     group = drawer_augroup,
     callback = function(event)
+      vim.print(event)
       --- @type integer
       --- @diagnostic disable-next-line: assign-type-mismatch
       local closing_window_id = tonumber(event.match)
 
-      local closing_window_buffer =
-        vim.fn.bufname(vim.fn.winbufnr(closing_window_id))
       --- @type DrawerInstance | nil
       local closing_window_instance = nil
 
       for _, instance in ipairs(instances) do
-        if instance.is_buffer(closing_window_buffer) then
+        if instance.is_window(closing_window_id) then
           closing_window_instance = instance
           break
         end
       end
 
       if closing_window_instance == nil then
-        local windows_in_tab = get_windows_in_tab()
+        local windows_in_tab = vim.api.nvim_tabpage_list_wins(0)
         local windows_in_tab_without_closing = vim.tbl_filter(function(winid)
           return winid ~= closing_window_id
         end, windows_in_tab)
@@ -510,7 +555,7 @@ function mod.setup(_)
         local num_drawers_in_tab = 0
         for _, winid in ipairs(windows_in_tab_without_closing) do
           for _, instance in ipairs(instances) do
-            if instance.is_buffer(vim.fn.bufname(vim.fn.winbufnr(winid))) then
+            if instance.is_window(winid) then
               num_drawers_in_tab = num_drawers_in_tab + 1
               break
             end

@@ -145,51 +145,48 @@ function mod.create_drawer(opts)
     local winid = instance.get_winid()
 
     if winid == -1 then
-      try_callback('on_will_open_split', bufname)
+      try_callback('on_will_open_split', {
+        bufname = bufname,
+      })
 
-      local buffer = vim.api.nvim_create_buf(false, true)
-      winid = vim.api.nvim_open_win(
-        buffer,
-        -- Intentionally focus the window after creating it, that makes it
-        -- easier for people to actually integrate, vs using the api themselves
-        -- with winids / bufnrs.
-        true,
-        {
-          win = -1,
-          split = instance.opts.position,
+      local buffer = vim.api.nvim_create_buf(false, false)
+      winid = vim.api.nvim_open_win(buffer, false, {
+        win = -1,
+        split = instance.opts.position,
 
-          width = (
-            instance.opts.position == 'left'
-            or instance.opts.position == 'right'
-          )
-              and instance.state.size
-            or nil,
-          height = (
-            instance.opts.position == 'above'
-            or instance.opts.position == 'below'
-          )
-              and instance.state.size
-            or nil,
-        }
-      )
+        width = (
+          instance.opts.position == 'left'
+          or instance.opts.position == 'right'
+        )
+            and instance.state.size
+          or nil,
+        height = (
+          instance.opts.position == 'above'
+          or instance.opts.position == 'below'
+        )
+            and instance.state.size
+          or nil,
+      })
       vim.api.nvim_win_set_var(winid, 'nvim-drawer-info', {
         bufname_prefix = instance.opts.bufname_prefix,
         index = instance.state.index,
       })
 
-      try_callback('on_did_open_split', bufname)
+      vim.api.nvim_win_call(winid, function()
+        try_callback('on_did_open_split', bufname)
+      end)
     else
-      instance.focus()
-
       if opts.mode == 'new' then
-        vim.cmd('enew | setlocal nobuflisted | setlocal noswapfile')
+        vim.api.nvim_win_call(winid, function()
+          vim.cmd('enew | setlocal nobuflisted | setlocal noswapfile')
+        end)
       end
     end
 
     instance.switch_window_to_buffer(winid, bufname)
 
-    if not opts.focus then
-      vim.api.nvim_set_current_win(current_winid)
+    if opts.focus then
+      vim.api.nvim_set_current_win(winid)
     end
   end
 
@@ -198,26 +195,35 @@ function mod.create_drawer(opts)
   function instance.switch_window_to_buffer(winid, bufname)
     local bufnr = get_bufnr_from_bufname(bufname)
 
-    try_callback('on_will_open_buffer', {
-      winid = winid,
-      bufname = bufname,
-    })
-
-    if bufnr == -1 then
-      bufnr = vim.api.nvim_buf_get_number(0)
-      try_callback('on_will_create_buffer', {
+    vim.api.nvim_win_call(winid, function()
+      try_callback('on_will_open_buffer', {
         winid = winid,
         bufname = bufname,
       })
+    end)
+
+    if bufnr == -1 then
+      -- bufnr = vim.api.nvim_buf_get_number(0)
+      bufnr = vim.api.nvim_win_get_buf(winid)
+      vim.api.nvim_win_set_buf(winid, bufnr)
+
+      -- vim.api.nvim_buf_call(bufnr, function()
+      vim.api.nvim_win_call(winid, function()
+        try_callback('on_will_create_buffer', {
+          winid = winid,
+          bufname = bufname,
+        })
+      end)
 
       vim.api.nvim_buf_set_name(bufnr, bufname)
 
-      vim.api.nvim_win_set_buf(winid, bufnr)
-      try_callback('on_did_create_buffer', {
-        winid = winid,
-        bufname = bufname,
-        bufnr = bufnr,
-      })
+      vim.api.nvim_buf_call(bufnr, function()
+        try_callback('on_did_create_buffer', {
+          winid = winid,
+          bufname = bufname,
+          bufnr = bufnr,
+        })
+      end)
     else
       vim.api.nvim_win_set_buf(winid, bufnr)
     end
@@ -228,30 +234,35 @@ function mod.create_drawer(opts)
 
     instance.state.windows_and_buffers[winid] = bufnr
 
-    vim.opt_local.bufhidden = 'hide'
-    vim.opt_local.buflisted = false
+    vim.api.nvim_win_call(winid, function()
+      vim.opt_local.bufhidden = 'hide'
+      vim.opt_local.buflisted = false
 
-    vim.opt_local.equalalways = false
-    if
-      instance.opts.position == 'left' or instance.opts.position == 'right'
-    then
-      vim.opt_local.winfixwidth = true
-      vim.opt_local.winfixheight = false
-    else
-      vim.opt_local.winfixwidth = false
-      vim.opt_local.winfixheight = true
-    end
+      vim.opt_local.equalalways = false
+      if
+        instance.opts.position == 'left' or instance.opts.position == 'right'
+      then
+        vim.opt_local.winfixwidth = true
+        vim.opt_local.winfixheight = false
+      else
+        vim.opt_local.winfixwidth = false
+        vim.opt_local.winfixheight = true
+      end
+    end)
 
     if not vim.list_contains(instance.state.buffers, bufname) then
       table.insert(instance.state.buffers, bufname)
     end
     instance.state.previous_bufname = bufname
 
-    try_callback('on_did_open_buffer', {
-      winid = winid,
-      bufname = bufname,
-      bufnr = bufnr,
-    })
+    -- vim.api.nvim_buf_call(bufnr, function()
+    vim.api.nvim_win_call(winid, function()
+      try_callback('on_did_open_buffer', {
+        winid = winid,
+        bufname = bufname,
+        bufnr = bufnr,
+      })
+    end)
   end
 
   --- Navigate to the next or previous buffer.

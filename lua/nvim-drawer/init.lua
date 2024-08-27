@@ -152,7 +152,7 @@ function mod.create_drawer(opts)
         bufname = bufname,
       })
 
-      local buffer = vim.api.nvim_create_buf(false, false)
+      local buffer = vim.api.nvim_create_buf(false, true)
       winid = vim.api.nvim_open_win(buffer, false, {
         win = -1,
         split = instance.opts.position,

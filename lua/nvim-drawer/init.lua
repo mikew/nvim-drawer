@@ -27,6 +27,9 @@ local mod = {}
 --- Called after the drawer is closed. Only called if the drawer was actually
 --- open.
 --- @field on_did_close? fun(): nil
+--- Called when vim starts up. Helpful to have drawers appear in the order they
+--- were created in.
+--- @field on_vim_enter? fun(instance: DrawerInstance): nil
 
 --- @class DrawerState
 --- Whether the drawer assumes it's open or not.
@@ -464,6 +467,19 @@ function mod.setup(_)
       })
     end
   end, { noremap = true })
+
+  vim.api.nvim_create_autocmd('VimEnter', {
+    desc = 'nvim-drawer: Run on_vim_enter',
+    group = drawer_augroup,
+    once = true,
+    callback = function()
+      for _, instance in ipairs(instances) do
+        if instance.opts.on_vim_enter then
+          instance.opts.on_vim_enter(instance)
+        end
+      end
+    end,
+  })
 
   vim.api.nvim_create_autocmd('TabEnter', {
     desc = 'nvim-drawer: Restore drawers',

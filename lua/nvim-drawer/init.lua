@@ -324,7 +324,6 @@ function mod.create_drawer(opts)
     end
 
     if opts.save_size then
-      vim.print('save_size', instance.get_size())
       instance.state.size = instance.get_size()
     end
 
@@ -507,10 +506,6 @@ function mod.setup(_)
     desc = 'nvim-drawer: Cleanup when buffer is wiped out',
     group = drawer_augroup,
     callback = function(event)
-      vim.print({
-        event = event,
-        winid = vim.fn.bufwinid(event.buf),
-      })
       local bufname = event.file
       for _, instance in ipairs(instances) do
         if instance.is_buffer(bufname) then
@@ -542,7 +537,6 @@ function mod.setup(_)
     desc = 'nvim-drawer: Close tab when all non-drawers are closed',
     group = drawer_augroup,
     callback = function(event)
-      vim.print(event)
       --- @type integer
       --- @diagnostic disable-next-line: assign-type-mismatch
       local closing_window_id = tonumber(event.match)

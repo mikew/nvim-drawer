@@ -211,7 +211,6 @@ function mod.create_drawer(opts)
           bufnr = bufnr,
         })
       end)
-      -- end
     end
 
     if should_create_buffer then
@@ -251,12 +250,6 @@ function mod.create_drawer(opts)
       table.insert(instance.state.buffers, final_bufnr)
     end
     instance.state.previous_bufnr = final_bufnr
-
-    vim.print('Stored buffer info', {
-      winid = winid,
-      bufnr = final_bufnr,
-      buffers = instance.state.buffers,
-    })
   end
 
   --- Navigate to the next or previous buffer.
@@ -499,7 +492,6 @@ function mod.setup(_)
     desc = 'nvim-drawer: Restore drawers',
     group = drawer_augroup,
     callback = function()
-      vim.print('TabEnter')
       for _, instance in ipairs(instances) do
         if instance.state.is_open then
           -- instance.close({ save_size = false })
@@ -521,7 +513,6 @@ function mod.setup(_)
     desc = 'nvim-drawer: Save drawer sizes',
     group = drawer_augroup,
     callback = function()
-      vim.print('TabLeave')
       for _, instance in ipairs(instances) do
         if instance.state.is_open then
           local size = instance.get_size()

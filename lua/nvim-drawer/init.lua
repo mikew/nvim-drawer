@@ -7,26 +7,29 @@ local mod = {}
 --- Position of the drawer.
 --- @field position 'left' | 'right' | 'above' | 'below'
 --- Called before a buffer is created. This is called very rarely.
---- @field on_will_create_buffer? fun(bufname: string): nil
+--- @field on_will_create_buffer? fun(event: {instance: DrawerInstance}): nil
 --- Called after a buffer is created. This is called very rarely.
---- @field on_did_create_buffer? fun(bufname: string): nil
+--- @field on_did_create_buffer? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before a buffer is opened.
 --- @field on_will_open_buffer? fun(bufname: string): nil
 --- Called after a buffer is opened.
---- @field on_did_open_buffer? fun(bufname: { winid: integer, bufnr: integer, bufname: string }): nil
---- Called before the splt is created.
---- @field on_will_open_split? fun(bufname: string): nil
---- Called after a split is created.
---- @field on_did_open_split? fun(bufname: string): nil
+--- @field on_did_open_buffer? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
+--- Called before the window is created.
+--- @field on_will_open_window? fun(event: { instance: DrawerInstance, bufnr: integer }): nil
+--- Called after a window is created.
+--- @field on_did_open_window? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before the drawer is closed. Note this will is called even if the
 --- drawer is closed.
---- @field on_will_close? fun(): nil
+--- @field on_will_close? fun(event: { instance: DrawerInstance }): nil
 --- Called after the drawer is closed. Only called if the drawer was actually
 --- open.
---- @field on_did_close? fun(): nil
+--- @field on_did_close? fun(event: { instance: DrawerInstance, winid: integer }): nil
 --- Called when vim starts up. Helpful to have drawers appear in the order they
 --- were created in.
---- @field on_vim_enter? fun(instance: DrawerInstance): nil
+--- @field on_vim_enter? fun(event: { instance: DrawerInstance }): nil
+--- Called after .open() is done. Note this will be called even if the drawer
+--- is open.
+--- @field on_did_open? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
 
 --- @class DrawerState
 --- Whether the drawer assumes it's open or not.
@@ -71,7 +74,7 @@ end
 ---   size = 15,
 ---   position = 'bottom',
 ---
----   on_will_create_buffer = function()
+---   on_did_create_buffer = function()
 ---   end,
 --- })
 --- ```
@@ -134,13 +137,21 @@ function mod.create_drawer(opts)
 
     local should_create_buffer = not vim.api.nvim_buf_is_valid(bufnr)
     if should_create_buffer then
+      try_callback('on_will_create_buffer', { instance = instance })
       bufnr = vim.api.nvim_create_buf(false, true)
+
+      -- Intentionally not calling `on_did_create_buffer` here, since the
+      -- buffer isn't attached to a window yet, and things like `termopen()`
+      -- expect the buffer to be in a window.
+      -- It's called later after the window exists.
     end
 
     if winid == -1 then
-      try_callback('on_will_open_split', {})
+      try_callback('on_will_open_window', {
+        instance = instance,
+        bufnr = bufnr,
+      })
 
-      -- local buffer = vim.api.nvim_create_buf(false, true)
       winid = vim.api.nvim_open_win(bufnr, false, {
         win = -1,
         split = instance.opts.position,
@@ -177,28 +188,36 @@ function mod.create_drawer(opts)
       end)
 
       vim.api.nvim_win_call(winid, function()
-        try_callback('on_did_open_split')
+        try_callback('on_did_open_window', {
+          instance = instance,
+          winid = winid,
+          bufnr = bufnr,
+        })
       end)
 
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_open_buffer', {
+          instance = instance,
           winid = winid,
           bufnr = bufnr,
         })
       end)
     else
-      if opts.mode == 'new' then
-        vim.api.nvim_win_call(winid, function()
-          vim.cmd('enew | setlocal nobuflisted | setlocal noswapfile')
-        end)
-      else
-        vim.api.nvim_win_set_buf(winid, bufnr)
-      end
+      vim.api.nvim_win_set_buf(winid, bufnr)
+      vim.api.nvim_win_call(winid, function()
+        try_callback('on_did_open_buffer', {
+          instance = instance,
+          winid = winid,
+          bufnr = bufnr,
+        })
+      end)
+      -- end
     end
 
     if should_create_buffer then
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_create_buffer', {
+          instance = instance,
           winid = winid,
           bufnr = bufnr,
         })
@@ -208,6 +227,14 @@ function mod.create_drawer(opts)
     if opts.focus then
       vim.api.nvim_set_current_win(winid)
     end
+
+    vim.api.nvim_win_call(winid, function()
+      try_callback('on_did_open', {
+        instance = instance,
+        winid = winid,
+        bufnr = bufnr,
+      })
+    end)
 
     instance.store_buffer_info(winid)
   end
@@ -254,12 +281,19 @@ function mod.create_drawer(opts)
       return
     end
 
-    index = index - 1
     local next_index = index + distance
     local next_bufnr =
-      instance.state.buffers[(next_index % #instance.state.buffers) + 1]
+      instance.state.buffers[((next_index - 1) % #instance.state.buffers) + 1]
 
     vim.api.nvim_win_set_buf(winid, next_bufnr)
+    vim.api.nvim_win_call(winid, function()
+      try_callback('on_did_open_buffer', {
+        instance = instance,
+        winid = winid,
+        bufnr = next_bufnr,
+      })
+    end)
+    instance.store_buffer_info(winid)
   end
 
   --- @class DrawerCloseOptions
@@ -276,7 +310,7 @@ function mod.create_drawer(opts)
   function instance.close(opts)
     opts = vim.tbl_extend('force', { save_size = true }, opts or {})
 
-    try_callback('on_will_close')
+    try_callback('on_will_close', { instance = instance })
 
     instance.state.is_open = false
 
@@ -293,7 +327,7 @@ function mod.create_drawer(opts)
     instance.store_buffer_info(winid)
     vim.api.nvim_win_close(winid, false)
     -- instance.state.windows_and_buffers[winid] = nil
-    try_callback('on_did_close')
+    try_callback('on_did_close', { instance = instance, winid = winid })
   end
 
   --- @class DrawerToggleOptions
@@ -455,7 +489,7 @@ function mod.setup(_)
     callback = function()
       for _, instance in ipairs(instances) do
         if instance.opts.on_vim_enter then
-          instance.opts.on_vim_enter(instance)
+          instance.opts.on_vim_enter({ instance = instance })
         end
       end
     end,

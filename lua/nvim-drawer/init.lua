@@ -5,7 +5,7 @@ local mod = {}
 --- Initial size of the drawer, in lines or columns.
 --- @field size integer
 --- Position of the drawer.
---- @field position 'left' | 'right' | 'above' | 'below'
+--- @field position 'left' | 'right' | 'above' | 'below' | 'float'
 --- Don't keep the same buffer across all tabs.
 --- @field nvim_tree_hack? boolean
 --- Called before a buffer is created. This is called very rarely.
@@ -42,6 +42,24 @@ local mod = {}
 --- is open.
 --- Called in the context of the drawer window.
 --- @field on_did_open? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
+--- @field get_win_config? fun(): DrawerWindowConfig
+
+--- Adapted from `vim.api.keyset.win_config`
+--- @class DrawerWindowConfig
+--- @field margin? number
+--- @field width? number
+--- @field height? number
+--- @field anchor? 'NE' | 'NC' | 'NW' | 'CE' | 'CC' | 'CW' | 'SE' | 'SC' | 'SW'
+--- @field external? boolean
+--- @field focusable? boolean
+--- @field zindex? integer
+--- @field border? any
+--- @field title? any
+--- @field title_pos? string
+--- @field footer? any
+--- @field footer_pos? string
+--- @field style? string
+--- @field fixed? boolean
 
 --- @class DrawerState
 --- Whether the drawer assumes it's open or not.
@@ -171,23 +189,7 @@ function mod.create_drawer(opts)
         bufnr = bufnr,
       })
 
-      winid = vim.api.nvim_open_win(bufnr, false, {
-        win = -1,
-        split = instance.opts.position,
-
-        width = (
-          instance.opts.position == 'left'
-          or instance.opts.position == 'right'
-        )
-            and instance.state.size
-          or nil,
-        height = (
-          instance.opts.position == 'above'
-          or instance.opts.position == 'below'
-        )
-            and instance.state.size
-          or nil,
-      })
+      winid = vim.api.nvim_open_win(bufnr, false, instance.get_win_config())
 
       vim.api.nvim_win_call(winid, function()
         vim.opt_local.bufhidden = 'hide'
@@ -228,6 +230,7 @@ function mod.create_drawer(opts)
         winid = winid,
       })
       vim.api.nvim_win_set_buf(winid, bufnr)
+      vim.api.nvim_win_set_config(winid, instance.get_win_config())
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_open_buffer', {
           instance = instance,
@@ -274,6 +277,89 @@ function mod.create_drawer(opts)
       table.insert(instance.state.buffers, final_bufnr)
     end
     instance.state.previous_bufnr = final_bufnr
+  end
+
+  function instance.get_win_config()
+    --- @type vim.api.keyset.win_config
+    local win_config = {}
+
+    if instance.opts.position == 'float' then
+      win_config.relative = 'editor'
+
+      --- @type DrawerWindowConfig
+      local instance_win_config = {
+        anchor = 'CC',
+        margin = 0,
+      }
+      if instance.opts.get_win_config then
+        instance_win_config = vim.tbl_deep_extend(
+          'force',
+          instance_win_config,
+          instance.opts.get_win_config()
+        )
+      end
+
+      win_config = vim.tbl_deep_extend('force', win_config, instance_win_config)
+
+      -- Taken from https://github.com/MarioCarrion/videos/blob/269956e913b76e6bb4ed790e4b5d25255cb1db4f/2023/01/nvim/lua/plugins/nvim-tree.lua
+      local screen_w = vim.opt.columns:get()
+      local screen_h = vim.opt.lines:get() - vim.opt.cmdheight:get()
+      local window_w = (instance_win_config.width < 1)
+          and (screen_w * instance_win_config.width)
+        or instance_win_config.width
+      local window_h = (instance_win_config.height < 1)
+          and (screen_h * instance_win_config.height)
+        or instance_win_config.height
+      local window_w_int = math.floor(window_w)
+      local window_h_int = math.floor(window_h)
+      local center_x = (screen_w - window_w) / 2
+      local center_y = ((vim.opt.lines:get() - window_h) / 2)
+        - vim.opt.cmdheight:get()
+
+      win_config.width = window_w_int
+      win_config.height = window_h_int
+
+      local anchor_x = string.sub(win_config.anchor, 2, 2)
+      local anchor_y = string.sub(win_config.anchor, 1, 1)
+
+      if anchor_y == 'N' then
+        win_config.row = instance_win_config.margin
+      elseif anchor_y == 'C' then
+        win_config.row = center_y
+      elseif anchor_y == 'S' then
+        win_config.row = screen_h - window_h_int - instance_win_config.margin
+      end
+
+      if anchor_x == 'E' then
+        win_config.col = screen_w - window_w_int - instance_win_config.margin
+      elseif anchor_x == 'C' then
+        win_config.col = center_x
+      elseif anchor_x == 'W' then
+        win_config.col = instance_win_config.margin
+      end
+
+      -- Cleanup
+      win_config.margin = nil
+      win_config.anchor = nil
+    else
+      win_config.win = -1
+      win_config.split = instance.opts.position
+
+      if
+        instance.opts.position == 'left'
+        or instance.opts.position == 'right'
+      then
+        win_config.width = instance.state.size
+      end
+      if
+        instance.opts.position == 'above'
+        or instance.opts.position == 'below'
+      then
+        win_config.height = instance.state.size
+      end
+    end
+
+    return win_config
   end
 
   --- Navigate to the next or previous buffer.

@@ -87,6 +87,10 @@ end
 --- ```
 --- @param opts CreateDrawerOptions
 function mod.create_drawer(opts)
+  opts = vim.tbl_extend('force', {
+    nvim_tree_hack = false,
+  }, opts or {})
+
   --- @class DrawerInstance
   local instance = {
     --- @type CreateDrawerOptions
@@ -133,14 +137,17 @@ function mod.create_drawer(opts)
       opts or {}
     )
 
-    local bufnr = instance.state.previous_bufnr
-    if opts.mode == 'new' then
-      bufnr = -1
-    end
-
     instance.state.is_open = true
 
     local winid = instance.get_winid()
+
+    local bufnr = instance.state.previous_bufnr
+    if instance.opts.nvim_tree_hack then
+      bufnr = instance.state.windows_and_buffers[winid] or -1
+    end
+    if opts.mode == 'new' then
+      bufnr = -1
+    end
 
     local should_create_buffer = not vim.api.nvim_buf_is_valid(bufnr)
     if should_create_buffer then
@@ -560,7 +567,9 @@ function mod.setup(_)
             return b ~= closing_bufnr
           end, instance.state.buffers)
 
-          instance.state.is_open = false
+          --- TODO While it makes sense to do this here, it results in
+          --- nvim-tree closing when a tab is closed.
+          -- instance.state.is_open = false
           instance.state.previous_bufnr = new_buffers[#new_buffers] or -1
           instance.state.buffers = new_buffers
 

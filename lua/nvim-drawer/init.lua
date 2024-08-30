@@ -6,29 +6,41 @@ local mod = {}
 --- @field size integer
 --- Position of the drawer.
 --- @field position 'left' | 'right' | 'above' | 'below'
+--- Don't keep the same buffer across all tabs.
+--- @field nvim_tree_hack? boolean
 --- Called before a buffer is created. This is called very rarely.
---- @field on_will_create_buffer? fun(event: {instance: DrawerInstance}): nil
+--- Not called in the context of the drawer window.
+--- @field on_will_create_buffer? fun(event: { instance: DrawerInstance }): nil
 --- Called after a buffer is created. This is called very rarely.
+--- Called in the context of the drawer window.
 --- @field on_did_create_buffer? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before a buffer is opened.
---- @field on_will_open_buffer? fun(bufname: string): nil
+--- Not called in the context of the drawer window.
+--- @field on_will_open_buffer? fun(event: { instance: DrawerInstance }): nil
 --- Called after a buffer is opened.
+--- Called in the context of the drawer window.
 --- @field on_did_open_buffer? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before the window is created.
+--- Not called in the context of the drawer window.
 --- @field on_will_open_window? fun(event: { instance: DrawerInstance, bufnr: integer }): nil
 --- Called after a window is created.
+--- Called in the context of the drawer window.
 --- @field on_did_open_window? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before the drawer is closed. Note this will is called even if the
 --- drawer is closed.
+--- Not called in the context of the drawer window.
 --- @field on_will_close? fun(event: { instance: DrawerInstance }): nil
 --- Called after the drawer is closed. Only called if the drawer was actually
 --- open.
+--- Not called in the context of the drawer window.
 --- @field on_did_close? fun(event: { instance: DrawerInstance, winid: integer }): nil
 --- Called when vim starts up. Helpful to have drawers appear in the order they
 --- were created in.
+--- Not called in the context of the drawer window.
 --- @field on_vim_enter? fun(event: { instance: DrawerInstance }): nil
 --- Called after .open() is done. Note this will be called even if the drawer
 --- is open.
+--- Called in the context of the drawer window.
 --- @field on_did_open? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
 
 --- @class DrawerState
@@ -36,11 +48,11 @@ local mod = {}
 --- @field is_open boolean
 --- The last known size of the drawer.
 --- @field size integer
---- The name of the previous buffer that was opened.
+--- The number of the previous buffer that was opened.
 --- @field previous_bufnr integer
 --- The number of buffers that have been created.
 --- @field count integer
---- The names of all buffers that have been created.
+--- The number of all buffers that have been created.
 --- @field buffers integer[]
 --- The internal ID of the drawer.
 --- @field index integer
@@ -63,11 +75,6 @@ local function index_of(t, value)
   return -1
 end
 
---- @param bufname string
-local function get_bufnr_from_bufname(bufname)
-  return vim.fn.bufnr(bufname)
-end
-
 --- Create a new drawer.
 --- ```lua
 --- local example_drawer = drawer.create_drawer({
@@ -82,6 +89,7 @@ end
 function mod.create_drawer(opts)
   --- @class DrawerInstance
   local instance = {
+    --- @type CreateDrawerOptions
     opts = opts,
 
     --- @type DrawerState
@@ -92,7 +100,6 @@ function mod.create_drawer(opts)
       previous_bufnr = -1,
       count = 0,
       buffers = {},
-      -- winids = {},
       windows_and_buffers = {},
     },
   }
@@ -152,6 +159,11 @@ function mod.create_drawer(opts)
         bufnr = bufnr,
       })
 
+      try_callback('on_will_open_buffer', {
+        instance = instance,
+        bufnr = bufnr,
+      })
+
       winid = vim.api.nvim_open_win(bufnr, false, {
         win = -1,
         split = instance.opts.position,
@@ -203,6 +215,11 @@ function mod.create_drawer(opts)
         })
       end)
     else
+      try_callback('on_will_open_buffer', {
+        instance = instance,
+        bufnr = bufnr,
+        winid = winid,
+      })
       vim.api.nvim_win_set_buf(winid, bufnr)
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_open_buffer', {
@@ -278,6 +295,11 @@ function mod.create_drawer(opts)
     local next_bufnr =
       instance.state.buffers[((next_index - 1) % #instance.state.buffers) + 1]
 
+    try_callback('on_will_open_buffer', {
+      instance = instance,
+      bufnr = next_bufnr,
+      winid = winid,
+    })
     vim.api.nvim_win_set_buf(winid, next_bufnr)
     vim.api.nvim_win_call(winid, function()
       try_callback('on_did_open_buffer', {
@@ -494,7 +516,6 @@ function mod.setup(_)
     callback = function()
       for _, instance in ipairs(instances) do
         if instance.state.is_open then
-          -- instance.close({ save_size = false })
           instance.open({ focus = false })
 
           local winid = instance.get_winid()

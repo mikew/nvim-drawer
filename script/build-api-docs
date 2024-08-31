@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -ex
+
+~/.local/share/nvim/mason/bin/lua-language-server --doc lua
+
+GENERATED_LOG_PATH="$HOME/.local/share/nvim/mason/packages/lua-language-server/libexec/log/doc.md"
+END_MARKER="^# _G"
+
+END_LINE=$(grep -n "$END_MARKER" "$GENERATED_LOG_PATH" | cut -d: -f1)
+END_LINE=$((END_LINE - 1))
+
+head -n "$END_LINE" "$GENERATED_LOG_PATH" > API.md

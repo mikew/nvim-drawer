@@ -1,7 +1,7 @@
 --- @class NvimDrawerModule
 local mod = {}
 
---- @class CreateDrawerOptions
+--- @class NvimDrawerCreateOptions
 --- Initial size of the drawer, in lines or columns.
 --- @field size integer
 --- Position of the drawer.
@@ -10,42 +10,42 @@ local mod = {}
 --- @field nvim_tree_hack? boolean
 --- Called before a buffer is created. This is called very rarely.
 --- Not called in the context of the drawer window.
---- @field on_will_create_buffer? fun(event: { instance: DrawerInstance }): nil
+--- @field on_will_create_buffer? fun(event: { instance: NvimDrawerInstance }): nil
 --- Called after a buffer is created. This is called very rarely.
 --- Called in the context of the drawer window.
---- @field on_did_create_buffer? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
+--- @field on_did_create_buffer? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before a buffer is opened.
 --- Not called in the context of the drawer window.
---- @field on_will_open_buffer? fun(event: { instance: DrawerInstance }): nil
+--- @field on_will_open_buffer? fun(event: { instance: NvimDrawerInstance }): nil
 --- Called after a buffer is opened.
 --- Called in the context of the drawer window.
---- @field on_did_open_buffer? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
+--- @field on_did_open_buffer? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before the window is created.
 --- Not called in the context of the drawer window.
---- @field on_will_open_window? fun(event: { instance: DrawerInstance, bufnr: integer }): nil
+--- @field on_will_open_window? fun(event: { instance: NvimDrawerInstance, bufnr: integer }): nil
 --- Called after a window is created.
 --- Called in the context of the drawer window.
---- @field on_did_open_window? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
+--- @field on_did_open_window? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before the drawer is closed. Note this will is called even if the
 --- drawer is closed.
 --- Not called in the context of the drawer window.
---- @field on_will_close? fun(event: { instance: DrawerInstance }): nil
+--- @field on_will_close? fun(event: { instance: NvimDrawerInstance }): nil
 --- Called after the drawer is closed. Only called if the drawer was actually
 --- open.
 --- Not called in the context of the drawer window.
---- @field on_did_close? fun(event: { instance: DrawerInstance, winid: integer }): nil
+--- @field on_did_close? fun(event: { instance: NvimDrawerInstance, winid: integer }): nil
 --- Called when vim starts up. Helpful to have drawers appear in the order they
 --- were created in.
 --- Not called in the context of the drawer window.
---- @field on_vim_enter? fun(event: { instance: DrawerInstance }): nil
+--- @field on_vim_enter? fun(event: { instance: NvimDrawerInstance }): nil
 --- Called after .open() is done. Note this will be called even if the drawer
 --- is open.
 --- Called in the context of the drawer window.
---- @field on_did_open? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
---- @field win_config? DrawerWindowConfig
+--- @field on_did_open? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
+--- @field win_config? NvimDrawerWindowConfig
 
 --- Adapted from `vim.api.keyset.win_config`
---- @class DrawerWindowConfig
+--- @class NvimDrawerWindowConfig
 --- @field margin? number
 --- @field width? number
 --- @field height? number
@@ -61,7 +61,7 @@ local mod = {}
 --- @field style? string
 --- @field fixed? boolean
 
---- @class DrawerState
+--- @class NvimDrawerState
 --- Whether the drawer assumes it's open or not.
 --- @field is_open boolean
 --- The last known size of the drawer.
@@ -79,7 +79,7 @@ local mod = {}
 --- Whether the drawer is zoomed or not.
 --- @field is_zoomed boolean
 
---- @type DrawerInstance[]
+--- @type NvimDrawerInstance[]
 local instances = {}
 
 --- @param t table
@@ -104,18 +104,18 @@ end
 ---   end,
 --- })
 --- ```
---- @param opts CreateDrawerOptions
+--- @param opts NvimDrawerCreateOptions
 function mod.create_drawer(opts)
   opts = vim.tbl_extend('force', {
     nvim_tree_hack = false,
   }, opts or {})
 
-  --- @class DrawerInstance
+  --- @class NvimDrawerInstance
   local instance = {
-    --- @type CreateDrawerOptions
+    --- @type NvimDrawerCreateOptions
     opts = opts,
 
-    --- @type DrawerState
+    --- @type NvimDrawerState
     state = {
       index = #instances + 1,
       is_open = false,
@@ -135,7 +135,7 @@ function mod.create_drawer(opts)
     end
   end
 
-  --- @class DrawerOpenOptions
+  --- @class NvimDrawerOpenOptions
   --- @field focus? boolean
   --- @field mode? 'previous_or_new' | 'new'
 
@@ -149,7 +149,7 @@ function mod.create_drawer(opts)
   --- --- Open a new tab and focus it.
   --- example_drawer.open({ mode = 'new', focus = true })
   --- ```
-  --- @param opts? DrawerOpenOptions
+  --- @param opts? NvimDrawerOpenOptions
   function instance.open(opts)
     opts = vim.tbl_extend(
       'force',
@@ -296,7 +296,7 @@ function mod.create_drawer(opts)
     if instance.opts.position == 'float' then
       win_config.relative = 'editor'
 
-      --- @type DrawerWindowConfig
+      --- @type NvimDrawerWindowConfig
       local instance_win_config = vim.tbl_deep_extend('force', {
         anchor = 'CC',
         margin = 0,
@@ -481,7 +481,7 @@ function mod.create_drawer(opts)
     instance.store_buffer_info(winid)
   end
 
-  --- @class DrawerCloseOptions
+  --- @class NvimDrawerCloseOptions
   --- @field save_size? boolean
 
   --- Close the drawer. By default, the size of the drawer is saved.
@@ -491,7 +491,7 @@ function mod.create_drawer(opts)
   --- --- Don't save the size of the drawer.
   --- example_drawer.close({ save_size = false })
   --- ```
-  --- @param opts? DrawerCloseOptions
+  --- @param opts? NvimDrawerCloseOptions
   function instance.close(opts)
     opts = vim.tbl_extend('force', { save_size = true }, opts or {})
 
@@ -515,8 +515,8 @@ function mod.create_drawer(opts)
     try_callback('on_did_close', { instance = instance, winid = winid })
   end
 
-  --- @class DrawerToggleOptions
-  --- @field open? DrawerOpenOptions
+  --- @class NvimDrawerToggleOptions
+  --- @field open? NvimDrawerOpenOptions
 
   --- Toggle the drawer. Also lets you pass options to open the drawer.
   --- ```lua
@@ -525,7 +525,7 @@ function mod.create_drawer(opts)
   --- --- Focus the drawer when opening it.
   --- example_drawer.toggle({ open = { focus = true } })
   --- ```
-  --- @param opts? DrawerToggleOptions
+  --- @param opts? NvimDrawerToggleOptions
   function instance.toggle(opts)
     opts = vim.tbl_extend('force', { open = nil }, opts or {})
 
@@ -756,7 +756,7 @@ function mod.setup(_)
       --- @diagnostic disable-next-line: assign-type-mismatch
       local closing_window_id = tonumber(event.match)
 
-      --- @type DrawerInstance | nil
+      --- @type NvimDrawerInstance | nil
       local is_closing_drawer = nil
 
       for _, instance in ipairs(instances) do

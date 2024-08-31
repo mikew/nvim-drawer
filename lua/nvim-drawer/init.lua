@@ -232,6 +232,7 @@ function mod.create_drawer(opts)
         winid = winid,
       })
       vim.api.nvim_win_set_buf(winid, bufnr)
+      vim.api.nvim_win_set_config(winid, instance.build_win_config())
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_open_buffer', {
           instance = instance,
@@ -301,6 +302,7 @@ function mod.create_drawer(opts)
         margin = 0,
       }, instance.opts.win_config or {})
 
+      --- @type vim.api.keyset.win_config
       win_config = vim.tbl_deep_extend('force', win_config, instance_win_config)
 
       local border_width = {
@@ -329,8 +331,16 @@ function mod.create_drawer(opts)
         - (instance_win_config.margin * 2)
       local window_height_int = math.floor(window_height)
         - (instance_win_config.margin * 2)
-      local center_x = (screen_width - window_width) / 2
-      local center_y = ((screen_height - window_height) / 2) - cmdheight
+      local center_x = (
+        screen_width
+        - (window_width_int + border_width.left + border_width.right)
+      ) / 2
+      local center_y = (
+        (
+          screen_height
+          - (window_height_int + border_width.top + border_width.bottom)
+        ) / 2
+      ) - cmdheight
 
       win_config.width = window_width_int
       win_config.height = window_height_int
@@ -677,12 +687,6 @@ function mod.setup(_)
       for _, instance in ipairs(instances) do
         if instance.state.is_open then
           instance.open({ focus = false })
-
-          local winid = instance.get_winid()
-          instance.set_size(instance.state.size)
-
-          local bufnr = instance.state.previous_bufnr
-          vim.api.nvim_win_set_buf(winid, bufnr)
         else
           instance.close({ save_size = false })
         end

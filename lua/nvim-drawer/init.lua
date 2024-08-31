@@ -615,26 +615,6 @@ function mod.create_drawer(opts)
     return size
   end
 
-  --- Set the size of the drawer in lines or columns.
-  --- @param size integer
-  function instance.set_size(size)
-    local winid = instance.get_winid()
-    if winid == -1 then
-      return
-    end
-
-    instance.state.size = size
-
-    if
-      instance.opts.position == 'left'
-      or instance.opts.position == 'right'
-    then
-      vim.api.nvim_win_set_width(winid, size)
-    else
-      vim.api.nvim_win_set_height(winid, size)
-    end
-  end
-
   --- Check if a window belongs to the drawer.
   function instance.does_own_window(winid)
     return instance.state.windows_and_buffers[winid] ~= nil

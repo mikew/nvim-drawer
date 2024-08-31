@@ -42,14 +42,14 @@ local mod = {}
 --- is open.
 --- Called in the context of the drawer window.
 --- @field on_did_open? fun(event: { instance: DrawerInstance, winid: integer, bufnr: integer }): nil
---- @field get_win_config? fun(): DrawerWindowConfig
+--- @field win_config? DrawerWindowConfig
 
 --- Adapted from `vim.api.keyset.win_config`
 --- @class DrawerWindowConfig
 --- @field margin? number
 --- @field width? number
 --- @field height? number
---- @field anchor? 'NE' | 'NC' | 'NW' | 'CE' | 'CC' | 'CW' | 'SE' | 'SC' | 'SW'
+--- @field anchor? 'NE' | 'NC' | 'N' | 'NW' | 'CE' | 'E' | 'CC' | 'C' | 'CW' | 'W' | 'SE' | 'SC' | 'S' | 'SW'
 --- @field external? boolean
 --- @field focusable? boolean
 --- @field zindex? integer
@@ -191,7 +191,7 @@ function mod.create_drawer(opts)
         bufnr = bufnr,
       })
 
-      winid = vim.api.nvim_open_win(bufnr, false, instance.get_win_config())
+      winid = vim.api.nvim_open_win(bufnr, false, instance.build_win_config())
 
       vim.api.nvim_win_call(winid, function()
         vim.opt_local.bufhidden = 'hide'
@@ -280,61 +280,94 @@ function mod.create_drawer(opts)
     instance.state.previous_bufnr = final_bufnr
   end
 
-  function instance.get_win_config()
+  function instance.build_win_config()
     --- @type vim.api.keyset.win_config
     local win_config = {}
+
+    --- @type integer
+    local cmdheight = vim.opt.cmdheight:get()
+    --- @type integer
+    local screen_width = vim.opt.columns:get()
+    --- @type integer
+    local screen_height = vim.opt.lines:get()
+    local screen_height_without_cmdline = screen_height - cmdheight
 
     if instance.opts.position == 'float' then
       win_config.relative = 'editor'
 
       --- @type DrawerWindowConfig
-      local instance_win_config = {
+      local instance_win_config = vim.tbl_deep_extend('force', {
         anchor = 'CC',
         margin = 0,
-      }
-      if instance.opts.get_win_config then
-        instance_win_config = vim.tbl_deep_extend(
-          'force',
-          instance_win_config,
-          instance.opts.get_win_config()
-        )
-      end
+      }, instance.opts.win_config or {})
 
       win_config = vim.tbl_deep_extend('force', win_config, instance_win_config)
 
+      local border_width = {
+        left = 0,
+        right = 0,
+        top = 0,
+        bottom = 0,
+      }
+      if win_config.border ~= nil and win_config.border ~= 'none' then
+        border_width = {
+          left = 1,
+          right = 1,
+          top = 1,
+          bottom = 1,
+        }
+      end
+
       -- Taken from https://github.com/MarioCarrion/videos/blob/269956e913b76e6bb4ed790e4b5d25255cb1db4f/2023/01/nvim/lua/plugins/nvim-tree.lua
-      local screen_w = vim.opt.columns:get()
-      local screen_h = vim.opt.lines:get() - vim.opt.cmdheight:get()
-      local window_w = (instance_win_config.width < 1)
-          and (screen_w * instance_win_config.width)
+      local window_width = (instance_win_config.width < 1)
+          and (screen_width * instance_win_config.width)
         or instance_win_config.width
-      local window_h = (instance_win_config.height < 1)
-          and (screen_h * instance_win_config.height)
+      local window_height = (instance_win_config.height < 1)
+          and (screen_height_without_cmdline * instance_win_config.height)
         or instance_win_config.height
-      local window_w_int = math.floor(window_w)
+      local window_width_int = math.floor(window_width)
         - (instance_win_config.margin * 2)
-      local window_h_int = math.floor(window_h)
+      local window_height_int = math.floor(window_height)
         - (instance_win_config.margin * 2)
-      local center_x = (screen_w - window_w) / 2
-      local center_y = ((vim.opt.lines:get() - window_h) / 2)
-        - vim.opt.cmdheight:get()
+      local center_x = (screen_width - window_width) / 2
+      local center_y = ((screen_height - window_height) / 2) - cmdheight
 
-      win_config.width = window_w_int
-      win_config.height = window_h_int
+      win_config.width = window_width_int
+      win_config.height = window_height_int
 
-      local anchor_x = string.sub(win_config.anchor, 2, 2)
-      local anchor_y = string.sub(win_config.anchor, 1, 1)
+      local anchor = instance_win_config.anchor
+      if anchor == 'N' then
+        anchor = 'NC'
+      elseif anchor == 'S' then
+        anchor = 'SC'
+      elseif anchor == 'E' then
+        anchor = 'CE'
+      elseif anchor == 'W' then
+        anchor = 'CW'
+      elseif anchor == 'C' then
+        anchor = 'CC'
+      end
+      local anchor_x = string.sub(anchor, 2, 2)
+      local anchor_y = string.sub(anchor, 1, 1)
 
       if anchor_y == 'N' then
         win_config.row = instance_win_config.margin
       elseif anchor_y == 'C' then
         win_config.row = center_y
       elseif anchor_y == 'S' then
-        win_config.row = screen_h - window_h_int - instance_win_config.margin
+        win_config.row = screen_height_without_cmdline
+          - window_height_int
+          - instance_win_config.margin
+          - border_width.top
+          - border_width.bottom
       end
 
       if anchor_x == 'E' then
-        win_config.col = screen_w - window_w_int - instance_win_config.margin
+        win_config.col = screen_width
+          - window_width_int
+          - instance_win_config.margin
+          - border_width.left
+          - border_width.right
       elseif anchor_x == 'C' then
         win_config.col = center_x
       elseif anchor_x == 'W' then
@@ -344,12 +377,14 @@ function mod.create_drawer(opts)
       if instance.state.is_zoomed then
         win_config.row = instance_win_config.margin
         win_config.col = instance_win_config.margin
-        win_config.width = screen_w
-          - instance_win_config.margin
-          - instance_win_config.margin
-        win_config.height = screen_h
-          - instance_win_config.margin
-          - instance_win_config.margin
+        win_config.width = screen_width
+          - (instance_win_config.margin * 2)
+          - border_width.left
+          - border_width.right
+        win_config.height = screen_height_without_cmdline
+          - (instance_win_config.margin * 2)
+          - border_width.top
+          - border_width.bottom
       end
 
       -- Cleanup
@@ -366,7 +401,7 @@ function mod.create_drawer(opts)
         win_config.width = instance.state.size
 
         if instance.state.is_zoomed then
-          win_config.width = vim.opt.columns:get()
+          win_config.width = screen_width
         end
       end
       if
@@ -376,7 +411,7 @@ function mod.create_drawer(opts)
         win_config.height = instance.state.size
 
         if instance.state.is_zoomed then
-          win_config.height = vim.opt.lines:get()
+          win_config.height = screen_height
         end
       end
     end
@@ -391,7 +426,7 @@ function mod.create_drawer(opts)
     end
 
     instance.state.is_zoomed = not instance.state.is_zoomed
-    vim.api.nvim_win_set_config(winid, instance.get_win_config())
+    vim.api.nvim_win_set_config(winid, instance.build_win_config())
   end
 
   --- Navigate to the next or previous buffer.
@@ -681,7 +716,7 @@ function mod.setup(_)
         for winid, _ in pairs(instance.state.windows_and_buffers) do
           if instance.opts.position == 'float' then
             if vim.api.nvim_win_is_valid(winid) then
-              vim.api.nvim_win_set_config(winid, instance.get_win_config())
+              vim.api.nvim_win_set_config(winid, instance.build_win_config())
             end
           end
         end

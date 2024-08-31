@@ -1,7 +1,3 @@
-# LuaLS
-
----
-
 # NvimDrawerCloseOptions
 
 ## save_size

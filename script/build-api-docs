@@ -9,4 +9,5 @@ END_MARKER="^# _G"
 END_LINE=$(grep -n "$END_MARKER" "$GENERATED_LOG_PATH" | cut -d: -f1)
 END_LINE=$((END_LINE - 1))
 
-head -n "$END_LINE" "$GENERATED_LOG_PATH" > API.md
+head -n "$END_LINE" "$GENERATED_LOG_PATH" | tail -n +5 > API.md
+~/.local/share/nvim/mason/packages/prettier/node_modules/prettier/bin/prettier.cjs --write API.md

@@ -635,17 +635,17 @@ local drawer_augroup = vim.api.nvim_create_augroup('nvim-drawer', {
 })
 
 function mod.setup(_)
-  vim.keymap.set('n', '<leader>do', function()
-    for _, instance in ipairs(instances) do
-      vim.print({
-        opts = instance.opts,
-        state = instance.state,
-        size = instance.get_size(),
-        winid = instance.get_winid(),
-        is_foucsed = instance.is_foucsed(),
-      })
-    end
-  end, { noremap = true })
+  -- vim.keymap.set('n', '<leader>do', function()
+  --   for _, instance in ipairs(instances) do
+  --     vim.print({
+  --       opts = instance.opts,
+  --       state = instance.state,
+  --       size = instance.get_size(),
+  --       winid = instance.get_winid(),
+  --       is_foucsed = instance.is_focused(),
+  --     })
+  --   end
+  -- end, { noremap = true })
 
   vim.api.nvim_create_autocmd('VimEnter', {
     desc = 'nvim-drawer: Run on_vim_enter',

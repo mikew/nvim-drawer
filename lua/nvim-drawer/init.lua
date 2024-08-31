@@ -74,9 +74,10 @@ local mod = {}
 --- @field buffers integer[]
 --- The internal ID of the drawer.
 --- @field index integer
---- The windows belonging to the drawer.
----- @field winids integer[]
+--- The windows and buffers belonging to the drawer.
 --- @field windows_and_buffers table<integer, integer>
+--- Whether the drawer is zoomed or not.
+--- @field is_zoomed boolean
 
 --- @type DrawerInstance[]
 local instances = {}
@@ -123,6 +124,7 @@ function mod.create_drawer(opts)
       count = 0,
       buffers = {},
       windows_and_buffers = {},
+      is_zoomed = false,
     },
   }
 
@@ -230,7 +232,6 @@ function mod.create_drawer(opts)
         winid = winid,
       })
       vim.api.nvim_win_set_buf(winid, bufnr)
-      vim.api.nvim_win_set_config(winid, instance.get_win_config())
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_open_buffer', {
           instance = instance,
@@ -311,7 +312,9 @@ function mod.create_drawer(opts)
           and (screen_h * instance_win_config.height)
         or instance_win_config.height
       local window_w_int = math.floor(window_w)
+        - (instance_win_config.margin * 2)
       local window_h_int = math.floor(window_h)
+        - (instance_win_config.margin * 2)
       local center_x = (screen_w - window_w) / 2
       local center_y = ((vim.opt.lines:get() - window_h) / 2)
         - vim.opt.cmdheight:get()
@@ -338,6 +341,17 @@ function mod.create_drawer(opts)
         win_config.col = instance_win_config.margin
       end
 
+      if instance.state.is_zoomed then
+        win_config.row = instance_win_config.margin
+        win_config.col = instance_win_config.margin
+        win_config.width = screen_w
+          - instance_win_config.margin
+          - instance_win_config.margin
+        win_config.height = screen_h
+          - instance_win_config.margin
+          - instance_win_config.margin
+      end
+
       -- Cleanup
       win_config.margin = nil
       win_config.anchor = nil
@@ -350,16 +364,34 @@ function mod.create_drawer(opts)
         or instance.opts.position == 'right'
       then
         win_config.width = instance.state.size
+
+        if instance.state.is_zoomed then
+          win_config.width = vim.opt.columns:get()
+        end
       end
       if
         instance.opts.position == 'above'
         or instance.opts.position == 'below'
       then
         win_config.height = instance.state.size
+
+        if instance.state.is_zoomed then
+          win_config.height = vim.opt.lines:get()
+        end
       end
     end
 
     return win_config
+  end
+
+  function instance.toggle_zoom()
+    local winid = instance.get_winid()
+    if winid == -1 then
+      return
+    end
+
+    instance.state.is_zoomed = not instance.state.is_zoomed
+    vim.api.nvim_win_set_config(winid, instance.get_win_config())
   end
 
   --- Navigate to the next or previous buffer.
@@ -636,6 +668,22 @@ function mod.setup(_)
 
           local winid = instance.get_winid()
           instance.store_buffer_info(winid)
+        end
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('VimResized', {
+    desc = 'nvim-drawer: Resize drawers',
+    group = drawer_augroup,
+    callback = function()
+      for _, instance in ipairs(instances) do
+        for winid, _ in pairs(instance.state.windows_and_buffers) do
+          if instance.opts.position == 'float' then
+            if vim.api.nvim_win_is_valid(winid) then
+              vim.api.nvim_win_set_config(winid, instance.get_win_config())
+            end
+          end
         end
       end
     end,

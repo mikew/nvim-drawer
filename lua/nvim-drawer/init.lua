@@ -544,7 +544,7 @@ function mod.create_drawer(opts)
     if winid == -1 then
       instance.open({ focus = true })
     else
-      if instance.is_foucsed() then
+      if instance.is_focused() then
         instance.close({ save_size = true })
       else
         instance.focus()
@@ -575,7 +575,7 @@ function mod.create_drawer(opts)
   end
 
   --- Check if the drawer is focused.
-  function instance.is_foucsed()
+  function instance.is_focused()
     local winid = instance.get_winid()
     if winid == -1 then
       return false
@@ -756,8 +756,7 @@ function mod.setup(_)
       --- @diagnostic disable-next-line: assign-type-mismatch
       local closing_window_id = tonumber(event.match)
 
-      --- @type NvimDrawerInstance | nil
-      local is_closing_drawer = nil
+      local is_closing_drawer = false
 
       for _, instance in ipairs(instances) do
         if instance.does_own_window(closing_window_id) then

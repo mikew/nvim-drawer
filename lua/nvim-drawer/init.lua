@@ -677,7 +677,7 @@ function mod.setup(_)
   --       state = instance.state,
   --       size = instance.get_size(),
   --       winid = instance.get_winid(),
-  --       is_foucsed = instance.is_focused(),
+  --       is_focused = instance.is_focused(),
   --     })
   --   end
   -- end, { noremap = true })

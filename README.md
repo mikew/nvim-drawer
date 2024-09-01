@@ -225,5 +225,5 @@ drawer.create_drawer({
 
 ## Alternatives
 
-- [nvim-ide](https://github.com/ldelossa/nvim-ide?tab=readme-ov-file)
+- [nvim-ide](https://github.com/ldelossa/nvim-ide)
 - [edgy.nvim](https://github.com/folke/edgy.nvim)

@@ -131,10 +131,10 @@ Initial size of the drawer, in lines or columns.
 ## win_config
 
 ```lua
-NvimDrawerWindowConfig?
+NvimDrawerWindowConfig
 ```
 
-Adapted from `vim.api.keyset.win_config`
+Configuration for the floating window.
 
 ---
 
@@ -146,6 +146,8 @@ Adapted from `vim.api.keyset.win_config`
 function NvimDrawerInstance.build_win_config()
   -> vim.api.keyset.win_config
 ```
+
+Builds a win_config for the drawer to be used with `nvim_win_set_config`.
 
 ## close
 
@@ -240,10 +242,10 @@ example_drawer.go(1)
 example_drawer.go(-1)
 ```
 
-## is_foucsed
+## is_focused
 
 ```lua
-function NvimDrawerInstance.is_foucsed()
+function NvimDrawerInstance.is_focused()
   -> boolean
 ```
 
@@ -273,6 +275,8 @@ example_drawer.open({ mode = 'new', focus = true })
 function NvimDrawerInstance.store_buffer_info(winid: integer)
 ```
 
+Store the current window and buffer information.
+
 ## toggle
 
 ```lua
@@ -293,6 +297,8 @@ example_drawer.toggle({ open = { focus = true } })
 ```lua
 function NvimDrawerInstance.toggle_zoom()
 ```
+
+Toggles the drawer between its normal size and a zoomed size.
 
 ---
 
@@ -426,8 +432,10 @@ Adapted from `vim.api.keyset.win_config`
 ## anchor
 
 ```lua
-('C'|'CC'|'CE'|'CW'|'E'...(+9))?
+'C'|'CC'|'CE'|'CW'|'E'...(+9)
 ```
+
+Anchor the window to a corner or center. Accepts variants for centering as well.
 
 ## border
 
@@ -468,14 +476,18 @@ string?
 ## height
 
 ```lua
-number?
+string|number
 ```
+
+Width of the window. Can be a number or a percentage.
 
 ## margin
 
 ```lua
-number?
+number
 ```
+
+Keep the window this many rows / columns away from the screen edge.
 
 ## style
 
@@ -498,8 +510,10 @@ string?
 ## width
 
 ```lua
-number?
+string|number
 ```
+
+Width of the window. Can be a number or a percentage.
 
 ## zindex
 

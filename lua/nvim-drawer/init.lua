@@ -42,13 +42,18 @@ local mod = {}
 --- is open.
 --- Called in the context of the drawer window.
 --- @field on_did_open? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
+--- Configuration for the floating window.
 --- @field win_config? NvimDrawerWindowConfig
 
 --- Adapted from `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig
+--- Keep the window this many rows / columns away from the screen edge.
 --- @field margin? number
+--- Width of the window. Can be a number or a percentage.
 --- @field width? number | string
+--- Width of the window. Can be a number or a percentage.
 --- @field height? number | string
+--- Anchor the window to a corner or center. Accepts variants for centering as well.
 --- @field anchor? 'NE' | 'NC' | 'N' | 'NW' | 'CE' | 'E' | 'CC' | 'C' | 'CW' | 'W' | 'SE' | 'SC' | 'S' | 'SW'
 --- @field external? boolean
 --- @field focusable? boolean
@@ -286,6 +291,7 @@ function mod.create_drawer(opts)
     instance.store_buffer_info(winid)
   end
 
+  --- Store the current window and buffer information.
   --- @param winid integer
   function instance.store_buffer_info(winid)
     if winid == -1 then
@@ -300,6 +306,7 @@ function mod.create_drawer(opts)
     instance.state.previous_bufnr = final_bufnr
   end
 
+  --- Builds a win_config for the drawer to be used with `nvim_win_set_config`.
   function instance.build_win_config()
     --- @type vim.api.keyset.win_config
     local win_config = {}
@@ -460,6 +467,7 @@ function mod.create_drawer(opts)
     return win_config
   end
 
+  --- Toggles the drawer between its normal size and a zoomed size.
   function instance.toggle_zoom()
     local winid = instance.get_winid()
     if winid == -1 then

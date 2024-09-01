@@ -222,3 +222,8 @@ drawer.create_drawer({
 ## API
 
 [API.md](API.md)
+
+## Alternatives
+
+- [nvim-ide](https://github.com/ldelossa/nvim-ide)
+- [edgy.nvim](https://github.com/folke/edgy.nvim)

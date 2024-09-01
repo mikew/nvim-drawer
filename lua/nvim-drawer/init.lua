@@ -634,7 +634,11 @@ function mod.create_drawer(opts)
   function instance.get_size()
     local winid = instance.get_winid()
     if winid == -1 then
-      return 0
+      return instance.state.size
+    end
+
+    if instance.state.is_zoomed then
+      return instance.state.size
     end
 
     local size = (
@@ -712,9 +716,7 @@ function mod.setup(_)
       for _, instance in ipairs(instances) do
         if instance.state.is_open then
           local size = instance.get_size()
-          if size > 0 then
-            instance.state.size = size
-          end
+          instance.state.size = size
 
           local winid = instance.get_winid()
           instance.store_buffer_info(winid)

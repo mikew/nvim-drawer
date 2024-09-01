@@ -42,13 +42,18 @@ local mod = {}
 --- is open.
 --- Called in the context of the drawer window.
 --- @field on_did_open? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
+--- Configuration for the floating window.
 --- @field win_config? NvimDrawerWindowConfig
 
 --- Adapted from `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig
+--- Keep the window this many rows / columns away from the screen edge.
 --- @field margin? number
---- @field width? number
---- @field height? number
+--- Width of the window. Can be a number or a percentage.
+--- @field width? number | string
+--- Width of the window. Can be a number or a percentage.
+--- @field height? number | string
+--- Anchor the window to a corner or center. Accepts variants for centering as well.
 --- @field anchor? 'NE' | 'NC' | 'N' | 'NW' | 'CE' | 'E' | 'CC' | 'C' | 'CW' | 'W' | 'SE' | 'SC' | 'S' | 'SW'
 --- @field external? boolean
 --- @field focusable? boolean
@@ -92,6 +97,25 @@ local function index_of(t, value)
   end
 
   return -1
+end
+
+--- @param percentage string
+local function parse_percentage(percentage)
+  if type(percentage) == 'string' then
+    local number = tonumber(percentage)
+    if number then
+      return number / 100
+    end
+
+    if string.sub(percentage, -1) == '%' then
+      local number_without_percentage = tonumber(string.sub(percentage, 1, -2))
+      if number_without_percentage then
+        return number_without_percentage / 100
+      end
+    end
+  end
+
+  error('Could not parse ' .. percentage)
 end
 
 --- Create a new drawer.
@@ -267,6 +291,7 @@ function mod.create_drawer(opts)
     instance.store_buffer_info(winid)
   end
 
+  --- Store the current window and buffer information.
   --- @param winid integer
   function instance.store_buffer_info(winid)
     if winid == -1 then
@@ -281,6 +306,7 @@ function mod.create_drawer(opts)
     instance.state.previous_bufnr = final_bufnr
   end
 
+  --- Builds a win_config for the drawer to be used with `nvim_win_set_config`.
   function instance.build_win_config()
     --- @type vim.api.keyset.win_config
     local win_config = {}
@@ -321,12 +347,24 @@ function mod.create_drawer(opts)
       end
 
       -- Taken from https://github.com/MarioCarrion/videos/blob/269956e913b76e6bb4ed790e4b5d25255cb1db4f/2023/01/nvim/lua/plugins/nvim-tree.lua
-      local window_width = (instance_win_config.width < 1)
-          and (screen_width * instance_win_config.width)
-        or instance_win_config.width
-      local window_height = (instance_win_config.height < 1)
-          and (screen_height_without_cmdline * instance_win_config.height)
-        or instance_win_config.height
+      local window_width = 0
+      if type(instance_win_config.width) == 'string' then
+        window_width =
+          math.floor(parse_percentage(instance_win_config.width) * screen_width)
+      else
+        window_width = instance_win_config.width
+      end
+
+      local window_height = 0
+      if type(instance_win_config.height) == 'string' then
+        window_height = math.floor(
+          parse_percentage(instance_win_config.height)
+            * screen_height_without_cmdline
+        )
+      else
+        window_height = instance_win_config.height
+      end
+
       local window_width_int = math.floor(window_width)
         - (instance_win_config.margin * 2)
       local window_height_int = math.floor(window_height)
@@ -429,6 +467,7 @@ function mod.create_drawer(opts)
     return win_config
   end
 
+  --- Toggles the drawer between its normal size and a zoomed size.
   function instance.toggle_zoom()
     local winid = instance.get_winid()
     if winid == -1 then
@@ -544,7 +583,7 @@ function mod.create_drawer(opts)
     if winid == -1 then
       instance.open({ focus = true })
     else
-      if instance.is_foucsed() then
+      if instance.is_focused() then
         instance.close({ save_size = true })
       else
         instance.focus()
@@ -575,7 +614,7 @@ function mod.create_drawer(opts)
   end
 
   --- Check if the drawer is focused.
-  function instance.is_foucsed()
+  function instance.is_focused()
     local winid = instance.get_winid()
     if winid == -1 then
       return false
@@ -603,14 +642,18 @@ function mod.create_drawer(opts)
   function instance.get_size()
     local winid = instance.get_winid()
     if winid == -1 then
-      return 0
+      return instance.state.size
+    end
+
+    if instance.state.is_zoomed then
+      return instance.state.size
     end
 
     local size = (
       (instance.opts.position == 'left' or instance.opts.position == 'right')
         and vim.api.nvim_win_get_width(winid)
       or vim.api.nvim_win_get_height(winid)
-    ) or 0
+    ) or instance.state.size
 
     return size
   end
@@ -635,17 +678,17 @@ local drawer_augroup = vim.api.nvim_create_augroup('nvim-drawer', {
 })
 
 function mod.setup(_)
-  vim.keymap.set('n', '<leader>do', function()
-    for _, instance in ipairs(instances) do
-      vim.print({
-        opts = instance.opts,
-        state = instance.state,
-        size = instance.get_size(),
-        winid = instance.get_winid(),
-        is_foucsed = instance.is_foucsed(),
-      })
-    end
-  end, { noremap = true })
+  -- vim.keymap.set('n', '<leader>do', function()
+  --   for _, instance in ipairs(instances) do
+  --     vim.print({
+  --       opts = instance.opts,
+  --       state = instance.state,
+  --       size = instance.get_size(),
+  --       winid = instance.get_winid(),
+  --       is_focused = instance.is_focused(),
+  --     })
+  --   end
+  -- end, { noremap = true })
 
   vim.api.nvim_create_autocmd('VimEnter', {
     desc = 'nvim-drawer: Run on_vim_enter',
@@ -681,9 +724,7 @@ function mod.setup(_)
       for _, instance in ipairs(instances) do
         if instance.state.is_open then
           local size = instance.get_size()
-          if size > 0 then
-            instance.state.size = size
-          end
+          instance.state.size = size
 
           local winid = instance.get_winid()
           instance.store_buffer_info(winid)
@@ -756,8 +797,7 @@ function mod.setup(_)
       --- @diagnostic disable-next-line: assign-type-mismatch
       local closing_window_id = tonumber(event.match)
 
-      --- @type NvimDrawerInstance | nil
-      local is_closing_drawer = nil
+      local is_closing_drawer = false
 
       for _, instance in ipairs(instances) do
         if instance.does_own_window(closing_window_id) then

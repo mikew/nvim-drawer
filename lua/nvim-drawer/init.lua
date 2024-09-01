@@ -47,8 +47,8 @@ local mod = {}
 --- Adapted from `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig
 --- @field margin? number
---- @field width? number
---- @field height? number
+--- @field width? number | string
+--- @field height? number | string
 --- @field anchor? 'NE' | 'NC' | 'N' | 'NW' | 'CE' | 'E' | 'CC' | 'C' | 'CW' | 'W' | 'SE' | 'SC' | 'S' | 'SW'
 --- @field external? boolean
 --- @field focusable? boolean
@@ -92,6 +92,25 @@ local function index_of(t, value)
   end
 
   return -1
+end
+
+--- @param percentage string
+local function parse_percentage(percentage)
+  if type(percentage) == 'string' then
+    local number = tonumber(percentage)
+    if number then
+      return number / 100
+    end
+
+    if string.sub(percentage, -1) == '%' then
+      local number_without_percentage = tonumber(string.sub(percentage, 1, -2))
+      if number_without_percentage then
+        return number_without_percentage / 100
+      end
+    end
+  end
+
+  error('Could not parse ' .. percentage)
 end
 
 --- Create a new drawer.
@@ -321,12 +340,24 @@ function mod.create_drawer(opts)
       end
 
       -- Taken from https://github.com/MarioCarrion/videos/blob/269956e913b76e6bb4ed790e4b5d25255cb1db4f/2023/01/nvim/lua/plugins/nvim-tree.lua
-      local window_width = (instance_win_config.width < 1)
-          and (screen_width * instance_win_config.width)
-        or instance_win_config.width
-      local window_height = (instance_win_config.height < 1)
-          and (screen_height_without_cmdline * instance_win_config.height)
-        or instance_win_config.height
+      local window_width = 0
+      if type(instance_win_config.width) == 'string' then
+        window_width =
+          math.floor(parse_percentage(instance_win_config.width) * screen_width)
+      else
+        window_width = instance_win_config.width
+      end
+
+      local window_height = 0
+      if type(instance_win_config.height) == 'string' then
+        window_height = math.floor(
+          parse_percentage(instance_win_config.height)
+            * screen_height_without_cmdline
+        )
+      else
+        window_height = instance_win_config.height
+      end
+
       local window_width_int = math.floor(window_width)
         - (instance_win_config.margin * 2)
       local window_height_int = math.floor(window_height)
@@ -610,7 +641,7 @@ function mod.create_drawer(opts)
       (instance.opts.position == 'left' or instance.opts.position == 'right')
         and vim.api.nvim_win_get_width(winid)
       or vim.api.nvim_win_get_height(winid)
-    ) or 0
+    ) or instance.state.size
 
     return size
   end

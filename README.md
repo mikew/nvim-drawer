@@ -31,7 +31,18 @@ Then this plugin is for you.
 - Has a tab system.
 - When the last non-drawer is closed in a tab, the tab (or vim) is closed.
 - Simple API.
+- Drawers can be zoomed to take up the whole screen.
+- Drawers remember what buffer they were editing.
 - Uses buffers and is very flexible.
+
+## About
+
+At its core, nvim-drawer just creates and hides windows and tries _really_ hard
+to keep them consistent across tabs. You could also call a "drawer" a
+persistent window, or a persistent split.
+
+Since windows in vim require a buffer, nvim-drawer creates a scratch buffer for
+you.
 
 ## Usage
 

@@ -25,6 +25,8 @@ Then this plugin is for you.
 
 ## Features
 
+https://github.com/user-attachments/assets/008b0d7f-2edc-408c-9422-0fa7b7bc72ed
+
 - Attach to any side of the screen.
 - Size is consistent across tabs.
 - Open/close state is consistent across tabs.
@@ -81,6 +83,8 @@ Your drawer has methods like ...
 
 ### Terminal
 
+https://github.com/user-attachments/assets/a4818838-5c9a-4e68-87eb-396c7e781a11
+
 ```lua
 local drawer = require('nvim-drawer')
 
@@ -135,6 +139,8 @@ drawer.create_drawer({
 
 ### nvim-tree
 
+https://github.com/user-attachments/assets/5aad5f84-ccd2-4b25-9b32-369f01b508d3
+
 ```lua
 local drawer = require('nvim-drawer')
 
@@ -177,6 +183,38 @@ drawer.create_drawer({
   on_did_close = function()
     local nvim_tree_api = require('nvim-tree.api')
     nvim_tree_api.tree.close()
+  end,
+})
+```
+
+### `NOTES.md` / `.plan`
+
+https://github.com/user-attachments/assets/99161d29-6c41-4209-947e-d20dcea8dd89
+
+```lua
+drawer.create_drawer({
+  position = 'float',
+  -- Technically unused when using `position = 'float'`.
+  size = 40,
+
+  win_config = {
+    margin = 2,
+    border = 'rounded',
+    width = 80,
+    height = '50%',
+  },
+
+  on_vim_enter = function(event)
+    vim.keymap.set('n', '<leader>nn', function()
+      event.instance.focus_or_toggle()
+    end)
+    vim.keymap.set('n', '<leader>nz', function()
+      event.instance.toggle_zoom()
+    end)
+  end,
+
+  on_did_create_buffer = function()
+    vim.cmd('edit NOTES.md')
   end,
 })
 ```

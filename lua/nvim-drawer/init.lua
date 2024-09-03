@@ -7,6 +7,8 @@ local mod = {}
 --- Position of the drawer.
 --- @field position 'left' | 'right' | 'above' | 'below' | 'float'
 --- Don't keep the same buffer across all tabs.
+--- @field should_reuse_previous_bufnr? boolean
+--- @deprecated Use `should_reuse_previous_bufnr` instead.
 --- @field nvim_tree_hack? boolean
 --- Called before a buffer is created. This is called very rarely.
 --- Not called in the context of the drawer window.
@@ -185,10 +187,19 @@ function mod.create_drawer(opts)
 
     local winid = instance.get_winid()
 
+    -- To get the previous buffer, we start with `previous_bufnr` ...
     local bufnr = instance.state.previous_bufnr
+
+    -- ... or we use the buffer of the window if it exists ...
     if instance.opts.nvim_tree_hack then
+      instance.opts.should_reuse_previous_bufnr = true
+    end
+    if instance.opts.should_reuse_previous_bufnr then
       bufnr = instance.state.windows_and_buffers[winid] or -1
     end
+
+    -- ... and finally if we are trying to make a new window, we just force it
+    -- to -1 so a buffer will be created.
     if opts.mode == 'new' then
       bufnr = -1
     end

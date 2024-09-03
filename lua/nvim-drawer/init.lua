@@ -44,6 +44,8 @@ local mod = {}
 --- @field on_did_open? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
 --- Configuration for the floating window.
 --- @field win_config? NvimDrawerWindowConfig
+--- @field does_own_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }): boolean
+--- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
 
 --- Adapted from `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig
@@ -660,12 +662,56 @@ function mod.create_drawer(opts)
 
   --- Check if a window belongs to the drawer.
   function instance.does_own_window(winid)
-    return instance.state.windows_and_buffers[winid] ~= nil
+    if not vim.api.nvim_win_is_valid(winid) then
+      return false
+    end
+
+    local system_does_own_window = instance.state.windows_and_buffers[winid]
+      ~= nil
+
+    local bufnr = vim.api.nvim_win_get_buf(winid)
+    local user_does_own_window = false
+    if instance.opts.does_own_window then
+      user_does_own_window = instance.opts.does_own_window({
+        instance = instance,
+        winid = winid,
+        bufnr = bufnr,
+        bufname = vim.api.nvim_buf_get_name(bufnr),
+      })
+    end
+
+    return system_does_own_window
+      or user_does_own_window
+      or instance.does_own_buffer(bufnr)
   end
 
   --- Check if a buffer belongs to the drawer.
   function instance.does_own_buffer(bufnr)
-    return vim.list_contains(instance.state.buffers, bufnr)
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return false
+    end
+
+    local system_does_own_buffer =
+      vim.list_contains(instance.state.buffers, bufnr)
+
+    for _, buf in pairs(instance.state.windows_and_buffers) do
+      if buf == bufnr then
+        system_does_own_buffer = true
+        break
+      end
+    end
+
+    local user_does_own_buffer = false
+    if instance.opts.does_own_buffer then
+      user_does_own_buffer = instance.opts.does_own_buffer({
+        instance = instance,
+        bufnr = bufnr,
+        bufname = vim.api.nvim_buf_get_name(bufnr),
+      })
+    end
+
+    return system_does_own_buffer or user_does_own_buffer
+  end
   end
 
   table.insert(instances, instance)
@@ -707,13 +753,19 @@ function mod.setup(_)
     desc = 'nvim-drawer: Restore drawers',
     group = drawer_augroup,
     callback = function()
-      for _, instance in ipairs(instances) do
-        if instance.state.is_open then
-          instance.open({ focus = false })
-        else
-          instance.close({ save_size = false })
+      -- Without `vim.schedule`, when calling `nvim_buf_get_name` with the
+      -- buffer in the new tab, the name of the previous buffer is returned not
+      -- an empty string
+      -- as expected.
+      vim.schedule(function()
+        for _, instance in ipairs(instances) do
+          if instance.state.is_open then
+            instance.open({ focus = false })
+          else
+            instance.close({ save_size = false })
+          end
         end
-      end
+      end)
     end,
   })
 

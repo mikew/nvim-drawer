@@ -811,6 +811,29 @@ function mod.setup(_)
     end,
   })
 
+  vim.api.nvim_create_autocmd('BufWinEnter', {
+    group = drawer_augroup,
+    callback = function(event)
+      vim.schedule(function()
+        vim.print(event)
+
+        --- @type integer
+        local bufnr = event.buf
+        local winid = vim.fn.bufwinid(bufnr)
+
+        for _, instance in ipairs(instances) do
+          if instance.does_own_window(winid) then
+            if instance.state.windows_and_buffers[winid] == nil then
+              instance.claim(winid)
+            end
+
+            break
+          end
+        end
+      end)
+    end,
+  })
+
   vim.api.nvim_create_autocmd('WinClosed', {
     desc = 'nvim-drawer: Close tab when all non-drawers are closed',
     group = drawer_augroup,

@@ -668,6 +668,28 @@ function mod.create_drawer(opts)
     return vim.list_contains(instance.state.buffers, bufnr)
   end
 
+  --- @param winid integer
+  function instance.claim(winid)
+    if not vim.api.nvim_win_is_valid(winid) then
+      return
+    end
+
+    -- Handle the only current buffer, since the window might detach.
+    local non_floating_windows = vim.tbl_filter(function(tab_winid)
+      return vim.api.nvim_win_get_config(tab_winid).anchor == nil
+    end, vim.api.nvim_tabpage_list_wins(0))
+    if #non_floating_windows == 1 then
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_open_win(buf, false, {
+        win = -1,
+        split = 'above',
+      })
+    end
+
+    instance.store_buffer_info(winid)
+    instance.open({ mode = 'previous_or_new' })
+  end
+
   table.insert(instances, instance)
 
   return instance

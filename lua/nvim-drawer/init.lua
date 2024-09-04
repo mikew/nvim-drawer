@@ -8,7 +8,6 @@ local mod = {}
 --- @field position 'left' | 'right' | 'above' | 'below' | 'float'
 --- Don't keep the same buffer across all tabs.
 --- @field should_reuse_previous_bufnr? boolean
---- @deprecated Use `should_reuse_previous_bufnr` instead.
 --- @field nvim_tree_hack? boolean
 --- Called before a buffer is created. This is called very rarely.
 --- Not called in the context of the drawer window.

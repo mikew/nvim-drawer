@@ -28,13 +28,15 @@ Then this plugin is for you.
 https://github.com/user-attachments/assets/008b0d7f-2edc-408c-9422-0fa7b7bc72ed
 
 - Attach to any side of the screen.
+- Floating drawers.
+- Automatically claim buffers.
 - Size is consistent across tabs.
 - Open/close state is consistent across tabs.
+- Drawers can be zoomed to take up the whole screen.
+- Drawers remember what buffer they were editing.
 - Has a tab system.
 - When the last non-drawer is closed in a tab, the tab (or vim) is closed.
 - Simple API.
-- Drawers can be zoomed to take up the whole screen.
-- Drawers remember what buffer they were editing.
 - Uses buffers and is very flexible.
 
 ## About

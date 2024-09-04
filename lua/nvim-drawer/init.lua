@@ -680,8 +680,8 @@ function mod.create_drawer(opts)
 
     -- Handle the only current buffer, since the window might detach.
     local non_floating_windows = vim.tbl_filter(function(tab_winid)
-      for _, instance in ipairs(instances) do
-        if instance.state.windows_and_buffers[tab_winid] ~= nil then
+      for _, drawer_instance in ipairs(instances) do
+        if drawer_instance.state.windows_and_buffers[tab_winid] ~= nil then
           return false
         end
       end

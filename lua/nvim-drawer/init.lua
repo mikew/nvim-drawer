@@ -726,7 +726,6 @@ function mod.create_drawer(opts)
 
     return system_does_own_buffer or user_does_own_buffer
   end
-  end
 
   --- @param winid integer
   function instance.claim(winid)

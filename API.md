@@ -10,13 +10,23 @@ boolean?
 
 # NvimDrawerCreateOptions
 
+## does_own_buffer
+
+```lua
+(fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }):boolean)?
+```
+
+## does_own_window
+
+```lua
+(fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }):boolean)?
+```
+
 ## nvim_tree_hack
 
 ```lua
-boolean
+boolean?
 ```
-
-Don't keep the same buffer across all tabs.
 
 ## on_did_close
 
@@ -120,6 +130,14 @@ Not called in the context of the drawer window.
 
 Position of the drawer.
 
+## should_reuse_previous_bufnr
+
+```lua
+boolean
+```
+
+Don't keep the same buffer across all tabs.
+
 ## size
 
 ```lua
@@ -149,6 +167,12 @@ function NvimDrawerInstance.build_win_config()
 
 Builds a win_config for the drawer to be used with `nvim_win_set_config`.
 
+## claim
+
+```lua
+function NvimDrawerInstance.claim(winid: integer)
+```
+
 ## close
 
 ```lua
@@ -168,6 +192,7 @@ example_drawer.close({ save_size = false })
 
 ```lua
 function NvimDrawerInstance.does_own_buffer(bufnr: any)
+  -> boolean|unknown
 ```
 
 Check if a buffer belongs to the drawer.
@@ -176,7 +201,7 @@ Check if a buffer belongs to the drawer.
 
 ```lua
 function NvimDrawerInstance.does_own_window(winid: any)
-  -> boolean
+  -> boolean|unknown
 ```
 
 Check if a window belongs to the drawer.
@@ -240,6 +265,12 @@ example_drawer.go(1)
 
 --- Go to the previous buffer.
 example_drawer.go(-1)
+```
+
+## initialize_window
+
+```lua
+function NvimDrawerInstance.initialize_window(winid: integer)
 ```
 
 ## is_focused

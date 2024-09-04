@@ -680,6 +680,12 @@ function mod.create_drawer(opts)
 
     -- Handle the only current buffer, since the window might detach.
     local non_floating_windows = vim.tbl_filter(function(tab_winid)
+      for _, instance in ipairs(instances) do
+        if instance.state.windows_and_buffers[tab_winid] ~= nil then
+          return false
+        end
+      end
+
       return vim.api.nvim_win_get_config(tab_winid).anchor == nil
     end, vim.api.nvim_tabpage_list_wins(0))
     if #non_floating_windows == 1 then
@@ -820,8 +826,6 @@ function mod.setup(_)
     group = drawer_augroup,
     callback = function(event)
       vim.schedule(function()
-        vim.print(event)
-
         --- @type integer
         local bufnr = event.buf
         local winid = vim.fn.bufwinid(bufnr)

@@ -91,9 +91,13 @@ https://github.com/user-attachments/assets/a4818838-5c9a-4e68-87eb-396c7e781a11
 local drawer = require('nvim-drawer')
 
 drawer.create_drawer({
-  bufname_prefix = 'quick_terminal_',
   size = 15,
   position = 'below',
+
+  -- Automatically claim any opened terminals.
+  does_own_buffer = function(context)
+    return context.bufname:match('term://') ~= nil
+  end,
 
   on_vim_enter = function(event)
     -- Open the drawer on startup.
@@ -106,7 +110,11 @@ drawer.create_drawer({
     -- <leader>tn: open a new terminal.
     -- <leader>tt: go to the next terminal.
     -- <leader>tT: go to the previous terminal.
+    -- <leader>tz: zoom the terminal.
     vim.keymap.set('n', '<C-`>', function()
+      event.instance.focus_or_toggle()
+    end)
+    vim.keymap.set('t', '<C-`>', function()
       event.instance.focus_or_toggle()
     end)
     vim.keymap.set('n', '<leader>tn', function()
@@ -118,6 +126,9 @@ drawer.create_drawer({
     vim.keymap.set('n', '<leader>tT', function()
       event.instance.go(-1)
     end)
+    vim.keymap.set('n', '<leader>tz', function()
+      event.instance.toggle_zoom()
+    end)
   end,
 
   -- When a new buffer is created, switch it to a terminal.
@@ -126,10 +137,10 @@ drawer.create_drawer({
   end,
 
   -- Remove some UI elements.
-  on_did_open_window = function()
-    vim.opt.number = false
-    vim.opt.signcolumn = 'no'
-    vim.opt.statuscolumn = ''
+  on_did_open_buffer = function()
+    vim.opt_local.number = false
+    vim.opt_local.signcolumn = 'no'
+    vim.opt_local.statuscolumn = ''
   end,
 
   -- Scroll to the end when changing tabs.
@@ -194,17 +205,25 @@ drawer.create_drawer({
 https://github.com/user-attachments/assets/99161d29-6c41-4209-947e-d20dcea8dd89
 
 ```lua
+local drawer = require('nvim-drawer')
+
 drawer.create_drawer({
   position = 'float',
   -- Technically unused when using `position = 'float'`.
   size = 40,
 
   win_config = {
+    anchor = 'NC',
     margin = 2,
     border = 'rounded',
-    width = 80,
-    height = '50%',
+    width = '100%',
+    height = 10,
   },
+
+  -- Automatically claim any opened NOTES.md file.
+  does_own_buffer = function(context)
+    return context.bufname:match('NOTES.md') ~= nil
+  end,
 
   on_vim_enter = function(event)
     vim.keymap.set('n', '<leader>nn', function()

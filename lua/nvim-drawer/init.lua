@@ -765,6 +765,8 @@ local drawer_augroup = vim.api.nvim_create_augroup('nvim-drawer', {
   clear = true,
 })
 
+local is_entering_new_tab = false
+
 function mod.setup(_)
   -- vim.keymap.set('n', '<leader>do', function()
   --   for _, instance in ipairs(instances) do
@@ -804,10 +806,26 @@ function mod.setup(_)
           if instance.state.is_open then
             instance.open({ focus = false })
           else
-            instance.close({ save_size = false })
+            -- Close here can cause issues with the automatic claiming, IE if a
+            -- drawer owns `NOTES.md`, then the user does `:tabedit NOTES.md`,
+            -- the new tab is closed immediately.
+            -- This works around that.
+            if not is_entering_new_tab then
+              instance.close({ save_size = false })
+            end
           end
         end
+
+        is_entering_new_tab = false
       end)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('TabNew', {
+    desc = 'nvim-drawer: Set flag for new tab',
+    group = drawer_augroup,
+    callback = function()
+      is_entering_new_tab = true
     end,
   })
 

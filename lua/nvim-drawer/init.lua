@@ -228,23 +228,7 @@ function mod.create_drawer(opts)
       })
 
       winid = vim.api.nvim_open_win(bufnr, false, instance.build_win_config())
-
-      vim.api.nvim_win_call(winid, function()
-        vim.opt_local.bufhidden = 'hide'
-        vim.opt_local.buflisted = false
-
-        vim.opt_local.equalalways = false
-        if
-          instance.opts.position == 'left'
-          or instance.opts.position == 'right'
-        then
-          vim.opt_local.winfixwidth = true
-          vim.opt_local.winfixheight = false
-        else
-          vim.opt_local.winfixwidth = false
-          vim.opt_local.winfixheight = true
-        end
-      end)
+      instance.initialize_window(winid)
 
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_open_window', {
@@ -316,6 +300,26 @@ function mod.create_drawer(opts)
       table.insert(instance.state.buffers, final_bufnr)
     end
     instance.state.previous_bufnr = final_bufnr
+  end
+
+  --- @param winid integer
+  function instance.initialize_window(winid)
+    vim.api.nvim_win_call(winid, function()
+      vim.opt_local.bufhidden = 'hide'
+      vim.opt_local.buflisted = false
+
+      vim.opt_local.equalalways = false
+      if
+        instance.opts.position == 'left'
+        or instance.opts.position == 'right'
+      then
+        vim.opt_local.winfixwidth = true
+        vim.opt_local.winfixheight = false
+      else
+        vim.opt_local.winfixwidth = false
+        vim.opt_local.winfixheight = true
+      end
+    end)
   end
 
   --- Builds a win_config for the drawer to be used with `nvim_win_set_config`.
@@ -724,6 +728,35 @@ function mod.create_drawer(opts)
   end
   end
 
+  --- @param winid integer
+  function instance.claim(winid)
+    if not vim.api.nvim_win_is_valid(winid) then
+      return
+    end
+
+    -- Handle the only current buffer, since the window might detach.
+    local non_floating_windows = vim.tbl_filter(function(tab_winid)
+      for _, drawer_instance in ipairs(instances) do
+        if drawer_instance.state.windows_and_buffers[tab_winid] ~= nil then
+          return false
+        end
+      end
+
+      return vim.api.nvim_win_get_config(tab_winid).anchor == nil
+    end, vim.api.nvim_tabpage_list_wins(0))
+    if #non_floating_windows == 1 then
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_open_win(buf, false, {
+        win = -1,
+        split = 'above',
+      })
+    end
+
+    instance.store_buffer_info(winid)
+    instance.initialize_window(winid)
+    instance.open({ mode = 'previous_or_new' })
+  end
+
   table.insert(instances, instance)
 
   return instance
@@ -848,6 +881,27 @@ function mod.setup(_)
           -- end
         end
       end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('BufWinEnter', {
+    group = drawer_augroup,
+    callback = function(event)
+      vim.schedule(function()
+        --- @type integer
+        local bufnr = event.buf
+        local winid = vim.fn.bufwinid(bufnr)
+
+        for _, instance in ipairs(instances) do
+          if instance.does_own_window(winid) then
+            if instance.state.windows_and_buffers[winid] == nil then
+              instance.claim(winid)
+            end
+
+            break
+          end
+        end
+      end)
     end,
   })
 

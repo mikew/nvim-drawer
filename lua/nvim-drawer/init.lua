@@ -216,23 +216,7 @@ function mod.create_drawer(opts)
       })
 
       winid = vim.api.nvim_open_win(bufnr, false, instance.build_win_config())
-
-      vim.api.nvim_win_call(winid, function()
-        vim.opt_local.bufhidden = 'hide'
-        vim.opt_local.buflisted = false
-
-        vim.opt_local.equalalways = false
-        if
-          instance.opts.position == 'left'
-          or instance.opts.position == 'right'
-        then
-          vim.opt_local.winfixwidth = true
-          vim.opt_local.winfixheight = false
-        else
-          vim.opt_local.winfixwidth = false
-          vim.opt_local.winfixheight = true
-        end
-      end)
+      instance.initialize_window(winid)
 
       vim.api.nvim_win_call(winid, function()
         try_callback('on_did_open_window', {
@@ -304,6 +288,26 @@ function mod.create_drawer(opts)
       table.insert(instance.state.buffers, final_bufnr)
     end
     instance.state.previous_bufnr = final_bufnr
+  end
+
+  --- @param winid integer
+  function instance.initialize_window(winid)
+    vim.api.nvim_win_call(winid, function()
+      vim.opt_local.bufhidden = 'hide'
+      vim.opt_local.buflisted = false
+
+      vim.opt_local.equalalways = false
+      if
+        instance.opts.position == 'left'
+        or instance.opts.position == 'right'
+      then
+        vim.opt_local.winfixwidth = true
+        vim.opt_local.winfixheight = false
+      else
+        vim.opt_local.winfixwidth = false
+        vim.opt_local.winfixheight = true
+      end
+    end)
   end
 
   --- Builds a win_config for the drawer to be used with `nvim_win_set_config`.
@@ -687,6 +691,7 @@ function mod.create_drawer(opts)
     end
 
     instance.store_buffer_info(winid)
+    instance.initialize_window(winid)
     instance.open({ mode = 'previous_or_new' })
   end
 

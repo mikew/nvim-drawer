@@ -200,6 +200,43 @@ drawer.create_drawer({
 })
 ```
 
+### nvim-spectre
+
+```lua
+local drawer = require('nvim-drawer')
+
+drawer.create_drawer({
+  position = 'below',
+  size = 30,
+
+  does_own_window = function(context)
+    return context.bufname:match('spectre') ~= nil
+  end,
+
+  on_vim_enter = function(event)
+    vim.keymap.set('n', '<leader>S', function()
+      -- If the drawer has never been opened, call spectre. Once its
+      -- window opens, it will be claimed by the drawer, and we can use
+      -- the drawer API afterwards.
+      if
+        #vim.tbl_keys(event.instance.state.windows_and_buffers) == 0
+      then
+        require('spectre').toggle()
+      else
+        event.instance.focus_or_toggle()
+      end
+    end)
+  end,
+
+  -- Remove some UI elements.
+  on_did_open_buffer = function()
+    vim.opt_local.number = false
+    vim.opt_local.signcolumn = 'no'
+    vim.opt_local.statuscolumn = ''
+  end,
+})
+```
+
 ### `NOTES.md` / `.plan`
 
 https://github.com/user-attachments/assets/99161d29-6c41-4209-947e-d20dcea8dd89

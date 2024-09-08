@@ -160,7 +160,7 @@ local drawer = require('nvim-drawer')
 drawer.create_drawer({
   size = 40,
   position = 'right',
-  nvim_tree_hack = true,
+  should_reuse_previous_bufnr = false,
 
   on_vim_enter = function(event)
     --- Open the drawer on startup.

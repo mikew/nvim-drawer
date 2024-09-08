@@ -202,6 +202,8 @@ drawer.create_drawer({
 
 ### nvim-spectre
 
+https://github.com/user-attachments/assets/6a5595b4-e5ed-4260-9037-431eccef3477
+
 ```lua
 local drawer = require('nvim-drawer')
 

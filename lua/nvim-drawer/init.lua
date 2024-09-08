@@ -134,7 +134,7 @@ end
 --- @param opts NvimDrawerCreateOptions
 function mod.create_drawer(opts)
   opts = vim.tbl_extend('force', {
-    nvim_tree_hack = false,
+    should_reuse_previous_bufnr = true,
   }, opts or {})
 
   --- @class NvimDrawerInstance
@@ -193,9 +193,9 @@ function mod.create_drawer(opts)
 
     -- ... or we use the buffer of the window if it exists ...
     if instance.opts.nvim_tree_hack then
-      instance.opts.should_reuse_previous_bufnr = true
+      instance.opts.should_reuse_previous_bufnr = false
     end
-    if instance.opts.should_reuse_previous_bufnr then
+    if not instance.opts.should_reuse_previous_bufnr then
       bufnr = instance.state.windows_and_buffers[winid] or -1
     end
 
@@ -743,6 +743,7 @@ function mod.create_drawer(opts)
 
       return vim.api.nvim_win_get_config(tab_winid).anchor == nil
     end, vim.api.nvim_tabpage_list_wins(0))
+
     if #non_floating_windows == 1 then
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_open_win(buf, false, {

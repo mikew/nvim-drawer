@@ -160,7 +160,7 @@ local drawer = require('nvim-drawer')
 drawer.create_drawer({
   size = 40,
   position = 'right',
-  nvim_tree_hack = true,
+  should_reuse_previous_bufnr = false,
 
   on_vim_enter = function(event)
     --- Open the drawer on startup.
@@ -196,6 +196,43 @@ drawer.create_drawer({
   on_did_close = function()
     local nvim_tree_api = require('nvim-tree.api')
     nvim_tree_api.tree.close()
+  end,
+})
+```
+
+### nvim-spectre
+
+```lua
+local drawer = require('nvim-drawer')
+
+drawer.create_drawer({
+  position = 'below',
+  size = 30,
+
+  does_own_window = function(context)
+    return context.bufname:match('spectre') ~= nil
+  end,
+
+  on_vim_enter = function(event)
+    vim.keymap.set('n', '<leader>S', function()
+      -- If the drawer has never been opened, call spectre. Once its
+      -- window opens, it will be claimed by the drawer, and we can use
+      -- the drawer API afterwards.
+      if
+        #vim.tbl_keys(event.instance.state.windows_and_buffers) == 0
+      then
+        require('spectre').toggle()
+      else
+        event.instance.focus_or_toggle()
+      end
+    end)
+  end,
+
+  -- Remove some UI elements.
+  on_did_open_buffer = function()
+    vim.opt_local.number = false
+    vim.opt_local.signcolumn = 'no'
+    vim.opt_local.statuscolumn = ''
   end,
 })
 ```

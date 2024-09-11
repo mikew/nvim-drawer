@@ -725,6 +725,32 @@ function mod.create_drawer(opts)
     end
 
     return system_does_own_buffer or user_does_own_buffer
+
+  function instance.should_claim_window(winid)
+    if not vim.api.nvim_win_is_valid(winid) then
+      return false
+    end
+
+    if instance.state.windows_and_buffers[winid] ~= nil then
+      return false
+    end
+
+    local should_claim_window = false
+
+    if instance.opts.should_claim_window then
+      local bufnr = vim.api.nvim_win_get_buf(winid)
+
+      should_claim_window = instance.opts.should_claim_window({
+        instance = instance,
+        winid = winid,
+        bufnr = bufnr,
+        bufname = vim.api.nvim_buf_get_name(bufnr),
+      })
+    else
+      should_claim_window = instance.does_own_window(winid)
+    end
+
+    return should_claim_window
   end
 
   --- @param winid integer
@@ -911,11 +937,8 @@ function mod.setup(_)
         local winid = vim.fn.bufwinid(bufnr)
 
         for _, instance in ipairs(instances) do
-          if instance.does_own_window(winid) then
-            if instance.state.windows_and_buffers[winid] == nil then
-              instance.claim(winid)
-            end
-
+          if instance.should_claim_window(winid) then
+            instance.claim(winid)
             break
           end
         end

@@ -47,6 +47,7 @@ local mod = {}
 --- @field win_config? NvimDrawerWindowConfig
 --- @field does_own_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }): boolean
 --- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
+--- @field should_claim_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }): boolean
 
 --- Adapted from `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig
@@ -725,7 +726,9 @@ function mod.create_drawer(opts)
     end
 
     return system_does_own_buffer or user_does_own_buffer
+  end
 
+  --- @param winid integer
   function instance.should_claim_window(winid)
     if not vim.api.nvim_win_is_valid(winid) then
       return false

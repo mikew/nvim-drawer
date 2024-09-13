@@ -671,23 +671,25 @@ function mod.create_drawer(opts)
       return false
     end
 
-    local system_does_own_window = instance.state.windows_and_buffers[winid]
-      ~= nil
-
-    local bufnr = vim.api.nvim_win_get_buf(winid)
-    local user_does_own_window = false
-    if instance.opts.does_own_window then
-      user_does_own_window = instance.opts.does_own_window({
-        instance = instance,
-        winid = winid,
-        bufnr = bufnr,
-        bufname = vim.api.nvim_buf_get_name(bufnr),
-      })
+    if instance.state.windows_and_buffers[winid] ~= nil then
+      return true
     end
 
-    return system_does_own_window
-      or user_does_own_window
-      or instance.does_own_buffer(bufnr)
+    local bufnr = vim.api.nvim_win_get_buf(winid)
+    if instance.opts.does_own_window then
+      if
+        instance.opts.does_own_window({
+          instance = instance,
+          winid = winid,
+          bufnr = bufnr,
+          bufname = vim.api.nvim_buf_get_name(bufnr),
+        })
+      then
+        return true
+      end
+    end
+
+    return instance.does_own_buffer(bufnr)
   end
 
   --- Check if a buffer belongs to the drawer.
@@ -697,26 +699,25 @@ function mod.create_drawer(opts)
       return false
     end
 
-    local system_does_own_buffer =
-      vim.list_contains(instance.state.buffers, bufnr)
+    if vim.list_contains(instance.state.buffers, bufnr) then
+      return true
+    end
 
     for _, buf in pairs(instance.state.windows_and_buffers) do
       if buf == bufnr then
-        system_does_own_buffer = true
-        break
+        return true
       end
     end
 
-    local user_does_own_buffer = false
     if instance.opts.does_own_buffer then
-      user_does_own_buffer = instance.opts.does_own_buffer({
+      return instance.opts.does_own_buffer({
         instance = instance,
         bufnr = bufnr,
         bufname = vim.api.nvim_buf_get_name(bufnr),
       })
     end
 
-    return system_does_own_buffer or user_does_own_buffer
+    return false
   end
 
   --- @param winid integer

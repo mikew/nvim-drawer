@@ -8,6 +8,7 @@ local mod = {}
 --- @field position 'left' | 'right' | 'above' | 'below' | 'float'
 --- Don't keep the same buffer across all tabs.
 --- @field should_reuse_previous_bufnr? boolean
+--- Deprecated, please use `should_reuse_previous_bufnr = false` instead.
 --- @field nvim_tree_hack? boolean
 --- Called before a buffer is created. This is called very rarely.
 --- Not called in the context of the drawer window.
@@ -49,8 +50,8 @@ local mod = {}
 --- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
 --- @field should_claim_new_window? boolean
 
---- Adapted from `vim.api.keyset.win_config`
---- @class NvimDrawerWindowConfig
+--- Extends `vim.api.keyset.win_config`
+--- @class NvimDrawerWindowConfig: vim.api.keyset.win_config
 --- Keep the window this many rows / columns away from the screen edge.
 --- @field margin? number
 --- Width of the window. Can be a number or a percentage.
@@ -59,16 +60,6 @@ local mod = {}
 --- @field height? number | string
 --- Anchor the window to a corner or center. Accepts variants for centering as well.
 --- @field anchor? 'NE' | 'NC' | 'N' | 'NW' | 'CE' | 'E' | 'CC' | 'C' | 'CW' | 'W' | 'SE' | 'SC' | 'S' | 'SW'
---- @field external? boolean
---- @field focusable? boolean
---- @field zindex? integer
---- @field border? any
---- @field title? any
---- @field title_pos? string
---- @field footer? any
---- @field footer_pos? string
---- @field style? string
---- @field fixed? boolean
 
 --- @class NvimDrawerState
 --- Whether the drawer assumes it's open or not.
@@ -77,8 +68,6 @@ local mod = {}
 --- @field size integer
 --- The number of the previous buffer that was opened.
 --- @field previous_bufnr integer
---- The number of buffers that have been created.
---- @field count integer
 --- The number of all buffers that have been created.
 --- @field buffers integer[]
 --- The internal ID of the drawer.
@@ -150,7 +139,6 @@ function mod.create_drawer(opts)
       is_open = false,
       size = opts.size,
       previous_bufnr = -1,
-      count = 0,
       buffers = {},
       windows_and_buffers = {},
       is_zoomed = false,
@@ -677,56 +665,59 @@ function mod.create_drawer(opts)
   end
 
   --- Check if a window belongs to the drawer.
+  --- @param winid integer
   function instance.does_own_window(winid)
     if not vim.api.nvim_win_is_valid(winid) then
       return false
     end
 
-    local system_does_own_window = instance.state.windows_and_buffers[winid]
-      ~= nil
-
-    local bufnr = vim.api.nvim_win_get_buf(winid)
-    local user_does_own_window = false
-    if instance.opts.does_own_window then
-      user_does_own_window = instance.opts.does_own_window({
-        instance = instance,
-        winid = winid,
-        bufnr = bufnr,
-        bufname = vim.api.nvim_buf_get_name(bufnr),
-      })
+    if instance.state.windows_and_buffers[winid] ~= nil then
+      return true
     end
 
-    return system_does_own_window
-      or user_does_own_window
-      or instance.does_own_buffer(bufnr)
+    local bufnr = vim.api.nvim_win_get_buf(winid)
+    if instance.opts.does_own_window then
+      if
+        instance.opts.does_own_window({
+          instance = instance,
+          winid = winid,
+          bufnr = bufnr,
+          bufname = vim.api.nvim_buf_get_name(bufnr),
+        })
+      then
+        return true
+      end
+    end
+
+    return instance.does_own_buffer(bufnr)
   end
 
   --- Check if a buffer belongs to the drawer.
+  --- @param bufnr integer
   function instance.does_own_buffer(bufnr)
     if not vim.api.nvim_buf_is_valid(bufnr) then
       return false
     end
 
-    local system_does_own_buffer =
-      vim.list_contains(instance.state.buffers, bufnr)
+    if vim.list_contains(instance.state.buffers, bufnr) then
+      return true
+    end
 
     for _, buf in pairs(instance.state.windows_and_buffers) do
       if buf == bufnr then
-        system_does_own_buffer = true
-        break
+        return true
       end
     end
 
-    local user_does_own_buffer = false
     if instance.opts.does_own_buffer then
-      user_does_own_buffer = instance.opts.does_own_buffer({
+      return instance.opts.does_own_buffer({
         instance = instance,
         bufnr = bufnr,
         bufname = vim.api.nvim_buf_get_name(bufnr),
       })
     end
 
-    return system_does_own_buffer or user_does_own_buffer
+    return false
   end
 
   --- @param winid integer

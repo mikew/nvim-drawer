@@ -28,6 +28,8 @@ boolean?
 boolean?
 ```
 
+Deprecated, please use `should_reuse_previous_bufnr = false` instead.
+
 ## on_did_close
 
 ```lua
@@ -130,6 +132,12 @@ Not called in the context of the drawer window.
 
 Position of the drawer.
 
+## should_claim_new_window
+
+```lua
+boolean?
+```
+
 ## should_reuse_previous_bufnr
 
 ```lua
@@ -191,8 +199,8 @@ example_drawer.close({ save_size = false })
 ## does_own_buffer
 
 ```lua
-function NvimDrawerInstance.does_own_buffer(bufnr: any)
-  -> boolean|unknown
+function NvimDrawerInstance.does_own_buffer(bufnr: integer)
+  -> boolean
 ```
 
 Check if a buffer belongs to the drawer.
@@ -200,8 +208,8 @@ Check if a buffer belongs to the drawer.
 ## does_own_window
 
 ```lua
-function NvimDrawerInstance.does_own_window(winid: any)
-  -> boolean|unknown
+function NvimDrawerInstance.does_own_window(winid: integer)
+  -> boolean
 ```
 
 Check if a window belongs to the drawer.
@@ -388,14 +396,6 @@ integer[]
 
 The number of all buffers that have been created.
 
-## count
-
-```lua
-integer
-```
-
-The number of buffers that have been created.
-
 ## index
 
 ```lua
@@ -458,7 +458,7 @@ NvimDrawerOpenOptions?
 
 # NvimDrawerWindowConfig
 
-Adapted from `vim.api.keyset.win_config`
+Extends `vim.api.keyset.win_config`
 
 ## anchor
 
@@ -467,42 +467,6 @@ Adapted from `vim.api.keyset.win_config`
 ```
 
 Anchor the window to a corner or center. Accepts variants for centering as well.
-
-## border
-
-```lua
-any
-```
-
-## external
-
-```lua
-boolean?
-```
-
-## fixed
-
-```lua
-boolean?
-```
-
-## focusable
-
-```lua
-boolean?
-```
-
-## footer
-
-```lua
-any
-```
-
-## footer_pos
-
-```lua
-string?
-```
 
 ## height
 
@@ -520,24 +484,6 @@ number
 
 Keep the window this many rows / columns away from the screen edge.
 
-## style
-
-```lua
-string?
-```
-
-## title
-
-```lua
-any
-```
-
-## title_pos
-
-```lua
-string?
-```
-
 ## width
 
 ```lua
@@ -545,11 +491,5 @@ string|number
 ```
 
 Width of the window. Can be a number or a percentage.
-
-## zindex
-
-```lua
-integer?
-```
 
 ---

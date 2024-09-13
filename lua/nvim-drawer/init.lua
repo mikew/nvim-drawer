@@ -47,6 +47,7 @@ local mod = {}
 --- @field win_config? NvimDrawerWindowConfig
 --- @field does_own_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }): boolean
 --- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
+--- @field should_claim_new_window? boolean
 
 --- Adapted from `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig: vim.api.keyset.win_config
@@ -125,6 +126,7 @@ end
 function mod.create_drawer(opts)
   opts = vim.tbl_extend('force', {
     should_reuse_previous_bufnr = true,
+    should_claim_new_window = true,
   }, opts or {})
 
   --- @class NvimDrawerInstance
@@ -904,12 +906,12 @@ function mod.setup(_)
         local winid = vim.fn.bufwinid(bufnr)
 
         for _, instance in ipairs(instances) do
-          if instance.does_own_window(winid) then
-            if instance.state.windows_and_buffers[winid] == nil then
-              instance.claim(winid)
-            end
-
-            break
+          if
+            instance.opts.should_claim_new_window
+            and (instance.state.windows_and_buffers[winid] == nil)
+            and instance.does_own_window(winid)
+          then
+            instance.claim(winid)
           end
         end
       end)

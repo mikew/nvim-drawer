@@ -67,8 +67,6 @@ local mod = {}
 --- @field size integer
 --- The number of the previous buffer that was opened.
 --- @field previous_bufnr integer
---- The number of buffers that have been created.
---- @field count integer
 --- The number of all buffers that have been created.
 --- @field buffers integer[]
 --- The internal ID of the drawer.
@@ -140,7 +138,6 @@ function mod.create_drawer(opts)
       is_open = false,
       size = opts.size,
       previous_bufnr = -1,
-      count = 0,
       buffers = {},
       windows_and_buffers = {},
       is_zoomed = false,

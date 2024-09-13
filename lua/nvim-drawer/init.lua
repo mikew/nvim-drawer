@@ -8,6 +8,7 @@ local mod = {}
 --- @field position 'left' | 'right' | 'above' | 'below' | 'float'
 --- Don't keep the same buffer across all tabs.
 --- @field should_reuse_previous_bufnr? boolean
+--- Deprecated, please use `should_reuse_previous_bufnr = false` instead.
 --- @field nvim_tree_hack? boolean
 --- Called before a buffer is created. This is called very rarely.
 --- Not called in the context of the drawer window.
@@ -49,7 +50,7 @@ local mod = {}
 --- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
 --- @field should_claim_new_window? boolean
 
---- Adapted from `vim.api.keyset.win_config`
+--- Extends `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig: vim.api.keyset.win_config
 --- Keep the window this many rows / columns away from the screen edge.
 --- @field margin? number

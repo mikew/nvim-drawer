@@ -49,7 +49,7 @@ local mod = {}
 --- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
 
 --- Adapted from `vim.api.keyset.win_config`
---- @class NvimDrawerWindowConfig
+--- @class NvimDrawerWindowConfig: vim.api.keyset.win_config
 --- Keep the window this many rows / columns away from the screen edge.
 --- @field margin? number
 --- Width of the window. Can be a number or a percentage.
@@ -58,16 +58,6 @@ local mod = {}
 --- @field height? number | string
 --- Anchor the window to a corner or center. Accepts variants for centering as well.
 --- @field anchor? 'NE' | 'NC' | 'N' | 'NW' | 'CE' | 'E' | 'CC' | 'C' | 'CW' | 'W' | 'SE' | 'SC' | 'S' | 'SW'
---- @field external? boolean
---- @field focusable? boolean
---- @field zindex? integer
---- @field border? any
---- @field title? any
---- @field title_pos? string
---- @field footer? any
---- @field footer_pos? string
---- @field style? string
---- @field fixed? boolean
 
 --- @class NvimDrawerState
 --- Whether the drawer assumes it's open or not.
@@ -675,6 +665,7 @@ function mod.create_drawer(opts)
   end
 
   --- Check if a window belongs to the drawer.
+  --- @param winid integer
   function instance.does_own_window(winid)
     if not vim.api.nvim_win_is_valid(winid) then
       return false
@@ -700,6 +691,7 @@ function mod.create_drawer(opts)
   end
 
   --- Check if a buffer belongs to the drawer.
+  --- @param bufnr integer
   function instance.does_own_buffer(bufnr)
     if not vim.api.nvim_buf_is_valid(bufnr) then
       return false

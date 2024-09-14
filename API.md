@@ -33,7 +33,7 @@ Deprecated, please use `should_reuse_previous_bufnr = false` instead.
 ## on_did_close
 
 ```lua
-fun(event: { instance: NvimDrawerInstance, winid: integer }):nil
+(fun(event: { instance: NvimDrawerInstance, winid: integer }):nil)?
 ```
 
 Called after the drawer is closed. Only called if the drawer was actually
@@ -43,7 +43,7 @@ Not called in the context of the drawer window.
 ## on_did_create_buffer
 
 ```lua
-fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil
+(fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil)?
 ```
 
 Called after a buffer is created. This is called very rarely.
@@ -52,7 +52,7 @@ Called in the context of the drawer window.
 ## on_did_open
 
 ```lua
-fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil
+(fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil)?
 ```
 
 Called after .open() is done. Note this will be called even if the drawer
@@ -62,7 +62,7 @@ Called in the context of the drawer window.
 ## on_did_open_buffer
 
 ```lua
-fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil
+(fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil)?
 ```
 
 Called after a buffer is opened.
@@ -71,7 +71,7 @@ Called in the context of the drawer window.
 ## on_did_open_window
 
 ```lua
-fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil
+(fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }):nil)?
 ```
 
 Called after a window is created.
@@ -80,7 +80,7 @@ Called in the context of the drawer window.
 ## on_vim_enter
 
 ```lua
-fun(event: { instance: NvimDrawerInstance }):nil
+(fun(event: { instance: NvimDrawerInstance }):nil)?
 ```
 
 Called when vim starts up. Helpful to have drawers appear in the order they
@@ -90,7 +90,7 @@ Not called in the context of the drawer window.
 ## on_will_close
 
 ```lua
-fun(event: { instance: NvimDrawerInstance }):nil
+(fun(event: { instance: NvimDrawerInstance }):nil)?
 ```
 
 Called before the drawer is closed. Note this will is called even if the
@@ -100,7 +100,7 @@ Not called in the context of the drawer window.
 ## on_will_create_buffer
 
 ```lua
-fun(event: { instance: NvimDrawerInstance }):nil
+(fun(event: { instance: NvimDrawerInstance }):nil)?
 ```
 
 Called before a buffer is created. This is called very rarely.
@@ -109,7 +109,7 @@ Not called in the context of the drawer window.
 ## on_will_open_buffer
 
 ```lua
-fun(event: { instance: NvimDrawerInstance }):nil
+(fun(event: { instance: NvimDrawerInstance, bufnr: integer, winid: integer }):nil)?
 ```
 
 Called before a buffer is opened.
@@ -118,7 +118,7 @@ Not called in the context of the drawer window.
 ## on_will_open_window
 
 ```lua
-fun(event: { instance: NvimDrawerInstance, bufnr: integer }):nil
+(fun(event: { instance: NvimDrawerInstance, bufnr: integer }):nil)?
 ```
 
 Called before the window is created.
@@ -141,7 +141,7 @@ boolean?
 ## should_reuse_previous_bufnr
 
 ```lua
-boolean
+boolean?
 ```
 
 Don't keep the same buffer across all tabs.
@@ -157,7 +157,7 @@ Initial size of the drawer, in lines or columns.
 ## win_config
 
 ```lua
-NvimDrawerWindowConfig
+NvimDrawerWindowConfig?
 ```
 
 Configuration for the floating window.
@@ -362,6 +362,13 @@ local example_drawer = drawer.create_drawer({
 })
 ```
 
+## find_instance_for_winid
+
+```lua
+function NvimDrawerModule.find_instance_for_winid(winid: integer)
+  -> NvimDrawerInstance|nil
+```
+
 ## setup
 
 ```lua
@@ -458,12 +465,10 @@ NvimDrawerOpenOptions?
 
 # NvimDrawerWindowConfig
 
-Extends `vim.api.keyset.win_config`
-
 ## anchor
 
 ```lua
-'C'|'CC'|'CE'|'CW'|'E'...(+9)
+('C'|'CC'|'CE'|'CW'|'E'...(+9))?
 ```
 
 Anchor the window to a corner or center. Accepts variants for centering as well.
@@ -471,7 +476,7 @@ Anchor the window to a corner or center. Accepts variants for centering as well.
 ## height
 
 ```lua
-string|number
+(string|number)?
 ```
 
 Width of the window. Can be a number or a percentage.
@@ -479,7 +484,7 @@ Width of the window. Can be a number or a percentage.
 ## margin
 
 ```lua
-number
+number?
 ```
 
 Keep the window this many rows / columns away from the screen edge.
@@ -487,7 +492,7 @@ Keep the window this many rows / columns away from the screen edge.
 ## width
 
 ```lua
-string|number
+(string|number)?
 ```
 
 Width of the window. Can be a number or a percentage.

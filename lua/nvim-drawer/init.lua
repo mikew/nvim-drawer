@@ -18,7 +18,7 @@ local mod = {}
 --- @field on_did_create_buffer? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before a buffer is opened.
 --- Not called in the context of the drawer window.
---- @field on_will_open_buffer? fun(event: { instance: NvimDrawerInstance }): nil
+--- @field on_will_open_buffer? fun(event: { instance: NvimDrawerInstance, bufnr: integer, winid?: integer }): nil
 --- Called after a buffer is opened.
 --- Called in the context of the drawer window.
 --- @field on_did_open_buffer? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil

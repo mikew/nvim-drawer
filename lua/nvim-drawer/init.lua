@@ -304,6 +304,13 @@ function mod.create_drawer(opts)
     end)
 
     instance.store_buffer_info(winid)
+
+    for _, instance in ipairs(get_sorted_instances()) do
+      local drawer_winid = instance.get_winid()
+      if drawer_winid ~= -1 then
+        vim.api.nvim_win_set_config(drawer_winid, instance.build_win_config())
+      end
+    end
   end
 
   --- Store the current window and buffer information.

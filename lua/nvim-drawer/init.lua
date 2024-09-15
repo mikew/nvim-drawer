@@ -77,8 +77,37 @@ local mod = {}
 --- Whether the drawer is zoomed or not.
 --- @field is_zoomed boolean
 
+--- @class NvimDrawerSetupOptions
+--- @field side_order? 'creation' | ('float' | 'above' | 'below' | 'left' | 'right')[]
+
+--- @type NvimDrawerSetupOptions
+local default_options = {
+  side_order = 'creation',
+}
+
+local current_options = default_options
+
 --- @type NvimDrawerInstance[]
 local instances = {}
+
+function get_sorted_instances()
+  --- @type NvimDrawerInstance[]
+  local sorted_instances = {}
+
+  if current_options.side_order == 'creation' then
+    sorted_instances = instances
+  else
+    for _, side in ipairs(current_options.side_order) do
+      for _, instance in ipairs(instances) do
+        if instance.opts.position == side then
+          table.insert(sorted_instances, instance)
+        end
+      end
+    end
+  end
+
+  return sorted_instances
+end
 
 --- @param t table
 --- @param value any
@@ -761,7 +790,10 @@ local drawer_augroup = vim.api.nvim_create_augroup('nvim-drawer', {
 
 local is_entering_new_tab = false
 
-function mod.setup(_)
+--- @param options? NvimDrawerSetupOptions
+function mod.setup(options)
+  current_options = vim.tbl_deep_extend('force', default_options, options or {})
+
   -- vim.keymap.set('n', '<leader>do', function()
   --   for _, instance in ipairs(instances) do
   --     vim.print({
@@ -796,7 +828,7 @@ function mod.setup(_)
       -- an empty string
       -- as expected.
       vim.schedule(function()
-        for _, instance in ipairs(instances) do
+        for _, instance in ipairs(get_sorted_instances()) do
           if instance.state.is_open then
             instance.open({ focus = false })
           else

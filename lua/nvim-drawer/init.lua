@@ -77,8 +77,37 @@ local mod = {}
 --- Whether the drawer is zoomed or not.
 --- @field is_zoomed boolean
 
+--- @class NvimDrawerSetupOptions
+--- @field position_order? 'creation' | ('float' | 'above' | 'below' | 'left' | 'right')[]
+
+--- @type NvimDrawerSetupOptions
+local default_options = {
+  position_order = 'creation',
+}
+
+local current_options = default_options
+
 --- @type NvimDrawerInstance[]
 local instances = {}
+
+function get_sorted_instances()
+  --- @type NvimDrawerInstance[]
+  local sorted_instances = {}
+
+  if current_options.position_order == 'creation' then
+    sorted_instances = instances
+  else
+    for _, side in ipairs(current_options.position_order) do
+      for _, instance in ipairs(instances) do
+        if instance.opts.position == side then
+          table.insert(sorted_instances, instance)
+        end
+      end
+    end
+  end
+
+  return sorted_instances
+end
 
 --- @param t table
 --- @param value any
@@ -275,6 +304,13 @@ function mod.create_drawer(opts)
     end)
 
     instance.store_buffer_info(winid)
+
+    for _, instance in ipairs(get_sorted_instances()) do
+      local drawer_winid = instance.get_winid()
+      if drawer_winid ~= -1 then
+        vim.api.nvim_win_set_config(drawer_winid, instance.build_win_config())
+      end
+    end
   end
 
   --- Store the current window and buffer information.
@@ -774,7 +810,10 @@ function mod.find_instance_for_winid(winid)
   end
 end
 
-function mod.setup(_)
+--- @param options? NvimDrawerSetupOptions
+function mod.setup(options)
+  current_options = vim.tbl_deep_extend('force', default_options, options or {})
+
   -- vim.keymap.set('n', '<leader>do', function()
   --   for _, instance in ipairs(instances) do
   --     vim.print({
@@ -809,7 +848,7 @@ function mod.setup(_)
       -- an empty string
       -- as expected.
       vim.schedule(function()
-        for _, instance in ipairs(instances) do
+        for _, instance in ipairs(get_sorted_instances()) do
           if instance.state.is_open then
             instance.open({ focus = false })
           else

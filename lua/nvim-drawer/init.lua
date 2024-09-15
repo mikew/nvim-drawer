@@ -18,7 +18,7 @@ local mod = {}
 --- @field on_did_create_buffer? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
 --- Called before a buffer is opened.
 --- Not called in the context of the drawer window.
---- @field on_will_open_buffer? fun(event: { instance: NvimDrawerInstance }): nil
+--- @field on_will_open_buffer? fun(event: { instance: NvimDrawerInstance, bufnr: integer, winid?: integer }): nil
 --- Called after a buffer is opened.
 --- Called in the context of the drawer window.
 --- @field on_did_open_buffer? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
@@ -761,6 +761,19 @@ local drawer_augroup = vim.api.nvim_create_augroup('nvim-drawer', {
 
 local is_entering_new_tab = false
 
+--- @param winid integer
+function mod.find_instance_for_winid(winid)
+  if not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
+
+  for _, instance in ipairs(instances) do
+    if instance.does_own_window(winid) then
+      return instance
+    end
+  end
+end
+
 function mod.setup(_)
   -- vim.keymap.set('n', '<leader>do', function()
   --   for _, instance in ipairs(instances) do
@@ -923,37 +936,24 @@ function mod.setup(_)
       --- @type integer
       --- @diagnostic disable-next-line: assign-type-mismatch
       local closing_window_id = tonumber(event.match)
-
-      local is_closing_drawer = false
+      local closing_instance = mod.find_instance_for_winid(closing_window_id)
 
       for _, instance in ipairs(instances) do
-        if instance.does_own_window(closing_window_id) then
-          is_closing_drawer = true
-          break
-        end
-
         if instance.state.windows_and_buffers[closing_window_id] ~= nil then
           instance.state.windows_and_buffers[closing_window_id] = nil
         end
       end
 
-      if not is_closing_drawer then
+      if closing_instance == nil then
         local windows_in_tab = vim.api.nvim_tabpage_list_wins(0)
         local windows_in_tab_without_closing = vim.tbl_filter(function(winid)
           return winid ~= closing_window_id
         end, windows_in_tab)
+        local drawers_in_tab = vim.tbl_filter(function(winid)
+          return mod.find_instance_for_winid(winid) ~= nil
+        end, windows_in_tab_without_closing)
 
-        local num_drawers_in_tab = 0
-        for _, winid in ipairs(windows_in_tab_without_closing) do
-          for _, instance in ipairs(instances) do
-            if instance.does_own_window(winid) then
-              num_drawers_in_tab = num_drawers_in_tab + 1
-              break
-            end
-          end
-        end
-
-        if num_drawers_in_tab == #windows_in_tab_without_closing then
+        if #drawers_in_tab == #windows_in_tab_without_closing then
           if vim.fn.tabpagenr('$') > 1 then
             vim.cmd('tabclose')
           else

@@ -372,7 +372,7 @@ function NvimDrawerModule.find_instance_for_winid(winid: integer)
 ## setup
 
 ```lua
-function NvimDrawerModule.setup(_: any)
+function NvimDrawerModule.setup(options?: NvimDrawerSetupOptions)
 ```
 
 ---
@@ -389,6 +389,16 @@ boolean?
 
 ```lua
 ('new'|'previous_or_new')?
+```
+
+---
+
+# NvimDrawerSetupOptions
+
+## side_order
+
+```lua
+('creation'|('above'|'below'|'float'|'left'|'right')[])?
 ```
 
 ---

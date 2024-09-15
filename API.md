@@ -395,7 +395,7 @@ boolean?
 
 # NvimDrawerSetupOptions
 
-## side_order
+## position_order
 
 ```lua
 ('creation'|('above'|'below'|'float'|'left'|'right')[])?

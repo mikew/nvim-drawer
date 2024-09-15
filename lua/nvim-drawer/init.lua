@@ -78,11 +78,11 @@ local mod = {}
 --- @field is_zoomed boolean
 
 --- @class NvimDrawerSetupOptions
---- @field side_order? 'creation' | ('float' | 'above' | 'below' | 'left' | 'right')[]
+--- @field position_order? 'creation' | ('float' | 'above' | 'below' | 'left' | 'right')[]
 
 --- @type NvimDrawerSetupOptions
 local default_options = {
-  side_order = 'creation',
+  position_order = 'creation',
 }
 
 local current_options = default_options
@@ -94,10 +94,10 @@ function get_sorted_instances()
   --- @type NvimDrawerInstance[]
   local sorted_instances = {}
 
-  if current_options.side_order == 'creation' then
+  if current_options.position_order == 'creation' then
     sorted_instances = instances
   else
-    for _, side in ipairs(current_options.side_order) do
+    for _, side in ipairs(current_options.position_order) do
       for _, instance in ipairs(instances) do
         if instance.opts.position == side then
           table.insert(sorted_instances, instance)

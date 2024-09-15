@@ -218,6 +218,12 @@ function mod.create_drawer(opts)
       bufnr = instance.state.windows_and_buffers[winid] or -1
     end
 
+    -- ... or if we do have a window but don't have a buffer, we use the buffer
+    -- of the window.
+    if winid ~= -1 and bufnr == -1 then
+      bufnr = vim.api.nvim_win_get_buf(winid)
+    end
+
     -- ... and finally if we are trying to make a new window, we just force it
     -- to -1 so a buffer will be created.
     if opts.mode == 'new' then

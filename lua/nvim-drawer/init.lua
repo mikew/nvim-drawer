@@ -806,6 +806,7 @@ end
 --- @param options? NvimDrawerSetupOptions
 function mod.setup(options)
   current_options = vim.tbl_deep_extend('force', default_options, options or {})
+
   -- vim.keymap.set('n', '<leader>do', function()
   --   for _, instance in ipairs(instances) do
   --     vim.print({

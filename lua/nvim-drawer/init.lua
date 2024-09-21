@@ -1,6 +1,9 @@
 --- @class NvimDrawerModule
 local mod = {}
 
+--- @alias NvimDrawerDoesOwnWindowReason 'lookup' | 'vim_BufWinEnter'
+--- @alias NvimDrawerDoesOwnBufferReason 'window_lookup' | 'vim_BufWipeout'
+
 --- @class NvimDrawerCreateOptions
 --- Initial size of the drawer, in lines or columns.
 --- @field size integer
@@ -46,8 +49,8 @@ local mod = {}
 --- @field on_did_open? fun(event: { instance: NvimDrawerInstance, winid: integer, bufnr: integer }): nil
 --- Configuration for the floating window.
 --- @field win_config? NvimDrawerWindowConfig
---- @field does_own_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }): boolean
---- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
+--- @field does_own_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string, reason: NvimDrawerDoesOwnWindowReason }): boolean?
+--- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string, reason: NvimDrawerDoesOwnBufferReason }): boolean?
 --- @field should_claim_new_window? boolean
 
 --- Extends `vim.api.keyset.win_config`
@@ -637,7 +640,7 @@ function mod.create_drawer(opts)
   --- open.
   function instance.get_winid()
     for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if instance.does_own_window(w) then
+      if instance.does_own_window(w, 'lookup') then
         return w
       end
     end
@@ -702,7 +705,8 @@ function mod.create_drawer(opts)
 
   --- Check if a window belongs to the drawer.
   --- @param winid integer
-  function instance.does_own_window(winid)
+  --- @param reason NvimDrawerDoesOwnWindowReason
+  function instance.does_own_window(winid, reason)
     if not vim.api.nvim_win_is_valid(winid) then
       return false
     end
@@ -713,24 +717,26 @@ function mod.create_drawer(opts)
 
     local bufnr = vim.api.nvim_win_get_buf(winid)
     if instance.opts.does_own_window then
-      if
-        instance.opts.does_own_window({
-          instance = instance,
-          winid = winid,
-          bufnr = bufnr,
-          bufname = vim.api.nvim_buf_get_name(bufnr),
-        })
-      then
-        return true
+      local user_response = instance.opts.does_own_window({
+        instance = instance,
+        winid = winid,
+        bufnr = bufnr,
+        bufname = vim.api.nvim_buf_get_name(bufnr),
+        reason = reason,
+      })
+
+      if user_response ~= nil then
+        return user_response
       end
     end
 
-    return instance.does_own_buffer(bufnr)
+    return instance.does_own_buffer(bufnr, 'window_lookup')
   end
 
   --- Check if a buffer belongs to the drawer.
   --- @param bufnr integer
-  function instance.does_own_buffer(bufnr)
+  --- @param reason NvimDrawerDoesOwnBufferReason
+  function instance.does_own_buffer(bufnr, reason)
     if not vim.api.nvim_buf_is_valid(bufnr) then
       return false
     end
@@ -746,11 +752,16 @@ function mod.create_drawer(opts)
     end
 
     if instance.opts.does_own_buffer then
-      return instance.opts.does_own_buffer({
+      local user_response = instance.opts.does_own_buffer({
         instance = instance,
         bufnr = bufnr,
         bufname = vim.api.nvim_buf_get_name(bufnr),
+        reason = reason,
       })
+
+      if user_response ~= nil then
+        return user_response
+      end
     end
 
     return false
@@ -804,7 +815,7 @@ function mod.find_instance_for_winid(winid)
   end
 
   for _, instance in ipairs(instances) do
-    if instance.does_own_window(winid) then
+    if instance.does_own_window(winid, 'lookup') then
       return instance
     end
   end
@@ -911,10 +922,11 @@ function mod.setup(options)
     desc = 'nvim-drawer: Cleanup when buffer is wiped out',
     group = drawer_augroup,
     callback = function(event)
+      --- @type integer
       local closing_bufnr = event.buf
 
       for _, instance in ipairs(instances) do
-        if instance.does_own_buffer(closing_bufnr) then
+        if instance.does_own_buffer(closing_bufnr, 'vim_BufWipeout') then
           local new_buffers = vim.tbl_filter(function(b)
             return b ~= closing_bufnr
           end, instance.state.buffers)
@@ -963,7 +975,7 @@ function mod.setup(options)
           if
             instance.opts.should_claim_new_window
             and (instance.state.windows_and_buffers[winid] == nil)
-            and instance.does_own_window(winid)
+            and instance.does_own_window(winid, 'vim_BufWinEnter')
           then
             instance.claim(winid)
           end

@@ -931,6 +931,10 @@ function mod.setup(options)
             end
           end
 
+          if instance.state.previous_bufnr ~= -1 and instance.state.is_open then
+            instance.open({ focus = false })
+          end
+
           -- TODO Not sure if this is useful. Technically, the drawer will be
           -- "closed", like, it's not open any more.
           -- But not sure if BufWipeout will happen anyways via whatever people

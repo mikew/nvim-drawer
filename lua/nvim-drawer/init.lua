@@ -711,10 +711,6 @@ function mod.create_drawer(opts)
       return false
     end
 
-    if instance.state.windows_and_buffers[winid] ~= nil then
-      return true
-    end
-
     local bufnr = vim.api.nvim_win_get_buf(winid)
     if instance.opts.does_own_window then
       local user_response = instance.opts.does_own_window({
@@ -730,6 +726,10 @@ function mod.create_drawer(opts)
       end
     end
 
+    if instance.state.windows_and_buffers[winid] ~= nil then
+      return true
+    end
+
     return instance.does_own_buffer(bufnr, reason)
   end
 
@@ -739,16 +739,6 @@ function mod.create_drawer(opts)
   function instance.does_own_buffer(bufnr, reason)
     if not vim.api.nvim_buf_is_valid(bufnr) then
       return false
-    end
-
-    if vim.list_contains(instance.state.buffers, bufnr) then
-      return true
-    end
-
-    for _, buf in pairs(instance.state.windows_and_buffers) do
-      if buf == bufnr then
-        return true
-      end
     end
 
     if instance.opts.does_own_buffer then
@@ -761,6 +751,16 @@ function mod.create_drawer(opts)
 
       if user_response ~= nil then
         return user_response
+      end
+    end
+
+    if vim.list_contains(instance.state.buffers, bufnr) then
+      return true
+    end
+
+    for _, buf in pairs(instance.state.windows_and_buffers) do
+      if buf == bufnr then
+        return true
       end
     end
 

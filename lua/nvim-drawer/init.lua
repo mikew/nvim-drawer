@@ -2,7 +2,7 @@
 local mod = {}
 
 --- @alias NvimDrawerDoesOwnWindowReason 'lookup' | 'vim_BufWinEnter'
---- @alias NvimDrawerDoesOwnBufferReason 'window_lookup' | 'vim_BufWipeout'
+--- @alias NvimDrawerDoesOwnBufferReason 'vim_BufWipeout' | NvimDrawerDoesOwnWindowReason
 
 --- @class NvimDrawerCreateOptions
 --- Initial size of the drawer, in lines or columns.
@@ -730,7 +730,7 @@ function mod.create_drawer(opts)
       end
     end
 
-    return instance.does_own_buffer(bufnr, 'window_lookup')
+    return instance.does_own_buffer(bufnr, reason)
   end
 
   --- Check if a buffer belongs to the drawer.

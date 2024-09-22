@@ -595,7 +595,6 @@ function mod.create_drawer(opts)
 
     instance.store_buffer_info(winid)
     vim.api.nvim_win_close(winid, false)
-    -- instance.state.windows_and_buffers[winid] = nil
     try_callback('on_did_close', { instance = instance, winid = winid })
   end
 
@@ -856,16 +855,15 @@ function mod.setup(options)
     callback = function()
       -- Without `vim.schedule`, when calling `nvim_buf_get_name` with the
       -- buffer in the new tab, the name of the previous buffer is returned not
-      -- an empty string
-      -- as expected.
+      -- an empty string as expected.
       vim.schedule(function()
         for _, instance in ipairs(get_sorted_instances()) do
           if instance.state.is_open then
             instance.open({ focus = false })
           else
             -- Close here can cause issues with the automatic claiming, IE if a
-            -- drawer owns `NOTES.md`, then the user does `:tabedit NOTES.md`,
-            -- the new tab is closed immediately.
+            -- drawer tries to claim `NOTES.md` and the user does `:tabedit
+            -- NOTES.md`, the new tab is closed immediately.
             -- This works around that.
             if not is_entering_new_tab then
               instance.close({ save_size = false })
@@ -927,22 +925,21 @@ function mod.setup(options)
 
       for _, instance in ipairs(instances) do
         if instance.does_own_buffer(closing_bufnr, 'vim_BufWipeout') then
-          local new_buffers = vim.tbl_filter(function(b)
-            return b ~= closing_bufnr
-          end, instance.state.buffers)
-
           --- TODO While it makes sense to do this here, it results in
           --- nvim-tree closing when a tab is closed.
           -- instance.state.is_open = false
-          instance.state.previous_bufnr = new_buffers[#new_buffers] or -1
-          instance.state.buffers = new_buffers
 
+          instance.state.buffers = vim.tbl_filter(function(b)
+            return b ~= closing_bufnr
+          end, instance.state.buffers)
           for winid, bufnr in pairs(instance.state.windows_and_buffers) do
             if bufnr == closing_bufnr then
               instance.state.windows_and_buffers[winid] = nil
             end
           end
 
+          instance.state.previous_bufnr = instance.state.buffers[#instance.state.buffers]
+            or -1
           if instance.state.previous_bufnr ~= -1 and instance.state.is_open then
             instance.open({ focus = false })
           end

@@ -13,13 +13,13 @@ boolean?
 ## does_own_buffer
 
 ```lua
-(fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }):boolean)?
+fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string, reason: 'lookup'|'vim_BufWinEnter'|'vim_BufWipeout' }):boolean??
 ```
 
 ## does_own_window
 
 ```lua
-(fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }):boolean)?
+fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string, reason: 'lookup'|'vim_BufWinEnter' }):boolean??
 ```
 
 ## nvim_tree_hack
@@ -164,6 +164,14 @@ Configuration for the floating window.
 
 ---
 
+# NvimDrawerDoesOwnBufferReason
+
+---
+
+# NvimDrawerDoesOwnWindowReason
+
+---
+
 # NvimDrawerInstance
 
 ## build_win_config
@@ -199,20 +207,33 @@ example_drawer.close({ save_size = false })
 ## does_own_buffer
 
 ```lua
-function NvimDrawerInstance.does_own_buffer(bufnr: integer)
+function NvimDrawerInstance.does_own_buffer(bufnr: integer, reason: 'lookup'|'vim_BufWinEnter'|'vim_BufWipeout')
   -> boolean
 ```
 
 Check if a buffer belongs to the drawer.
 
+```lua
+reason:
+    | 'vim_BufWipeout'
+    | 'lookup'
+    | 'vim_BufWinEnter'
+```
+
 ## does_own_window
 
 ```lua
-function NvimDrawerInstance.does_own_window(winid: integer)
+function NvimDrawerInstance.does_own_window(winid: integer, reason: 'lookup'|'vim_BufWinEnter')
   -> boolean
 ```
 
 Check if a window belongs to the drawer.
+
+```lua
+reason:
+    | 'lookup'
+    | 'vim_BufWinEnter'
+```
 
 ## focus
 

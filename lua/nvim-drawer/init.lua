@@ -49,6 +49,7 @@ local mod = {}
 --- @field does_own_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }): boolean
 --- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
 --- @field should_claim_new_window? boolean
+--- @field should_close_on_bufwipeout? boolean
 
 --- Extends `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig: vim.api.keyset.win_config
@@ -155,6 +156,7 @@ function mod.create_drawer(opts)
   opts = vim.tbl_extend('force', {
     should_reuse_previous_bufnr = true,
     should_claim_new_window = true,
+    should_close_on_bufwipeout = true,
   }, opts or {})
 
   --- @class NvimDrawerInstance
@@ -913,10 +915,6 @@ function mod.setup(options)
 
       for _, instance in ipairs(instances) do
         if instance.does_own_buffer(closing_bufnr) then
-          --- TODO While it makes sense to do this here, it results in
-          --- nvim-tree closing when a tab is closed.
-          -- instance.state.is_open = false
-
           instance.state.buffers = vim.tbl_filter(function(b)
             return b ~= closing_bufnr
           end, instance.state.buffers)
@@ -928,8 +926,17 @@ function mod.setup(options)
 
           instance.state.previous_bufnr = instance.state.buffers[#instance.state.buffers]
             or -1
-          if instance.state.previous_bufnr ~= -1 and instance.state.is_open then
-            instance.open({ focus = false })
+          if instance.state.previous_bufnr ~= -1 then
+            if
+              instance.state.is_open
+              and instance.opts.should_reuse_previous_bufnr
+            then
+              instance.open({ mode = 'previous_or_new', focus = false })
+            end
+          else
+            if instance.opts.should_close_on_bufwipeout then
+              instance.state.is_open = false
+            end
           end
 
           -- TODO Not sure if this is useful. Technically, the drawer will be

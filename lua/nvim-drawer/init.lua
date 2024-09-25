@@ -915,18 +915,26 @@ function mod.setup(options)
 
       for _, instance in ipairs(instances) do
         if instance.does_own_buffer(closing_bufnr) then
+          --- Remove the buffer from the instance.
           instance.state.buffers = vim.tbl_filter(function(b)
             return b ~= closing_bufnr
           end, instance.state.buffers)
+
+          --- Remove any windows that were using the buffer.
           for winid, bufnr in pairs(instance.state.windows_and_buffers) do
             if bufnr == closing_bufnr then
               instance.state.windows_and_buffers[winid] = nil
             end
           end
 
+          --- Make sure previous_bufnr isn't set to an invalid buffer.
           instance.state.previous_bufnr = instance.state.buffers[#instance.state.buffers]
             or -1
+
+          --- If there is an alternative buffer ...
           if instance.state.previous_bufnr ~= -1 then
+            --- ... and the drawer was open AND has should_reuse_previous_bufnr
+            --- enabled, then call open. That makes the previous buffer appear.
             if
               instance.state.is_open
               and instance.opts.should_reuse_previous_bufnr
@@ -934,6 +942,7 @@ function mod.setup(options)
               instance.open({ mode = 'previous_or_new', focus = false })
             end
           else
+            --- Otherwise, close the drawer.
             if instance.opts.should_close_on_bufwipeout then
               instance.state.is_open = false
             end

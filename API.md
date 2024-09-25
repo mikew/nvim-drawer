@@ -138,6 +138,12 @@ Position of the drawer.
 boolean?
 ```
 
+## should_close_on_bufwipeout
+
+```lua
+boolean?
+```
+
 ## should_reuse_previous_bufnr
 
 ```lua

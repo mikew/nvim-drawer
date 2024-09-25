@@ -49,6 +49,7 @@ local mod = {}
 --- @field does_own_window? fun(context: { instance: NvimDrawerInstance, winid: integer, bufnr: integer, bufname: string }): boolean
 --- @field does_own_buffer? fun(context: { instance: NvimDrawerInstance, bufnr: integer, bufname: string }): boolean
 --- @field should_claim_new_window? boolean
+--- @field should_close_on_bufwipeout? boolean
 
 --- Extends `vim.api.keyset.win_config`
 --- @class NvimDrawerWindowConfig: vim.api.keyset.win_config
@@ -155,6 +156,7 @@ function mod.create_drawer(opts)
   opts = vim.tbl_extend('force', {
     should_reuse_previous_bufnr = true,
     should_claim_new_window = true,
+    should_close_on_bufwipeout = true,
   }, opts or {})
 
   --- @class NvimDrawerInstance
@@ -592,7 +594,6 @@ function mod.create_drawer(opts)
 
     instance.store_buffer_info(winid)
     vim.api.nvim_win_close(winid, false)
-    -- instance.state.windows_and_buffers[winid] = nil
     try_callback('on_did_close', { instance = instance, winid = winid })
   end
 
@@ -845,16 +846,15 @@ function mod.setup(options)
     callback = function()
       -- Without `vim.schedule`, when calling `nvim_buf_get_name` with the
       -- buffer in the new tab, the name of the previous buffer is returned not
-      -- an empty string
-      -- as expected.
+      -- an empty string as expected.
       vim.schedule(function()
         for _, instance in ipairs(get_sorted_instances()) do
           if instance.state.is_open then
             instance.open({ focus = false })
           else
             -- Close here can cause issues with the automatic claiming, IE if a
-            -- drawer owns `NOTES.md`, then the user does `:tabedit NOTES.md`,
-            -- the new tab is closed immediately.
+            -- drawer tries to claim `NOTES.md` and the user does `:tabedit
+            -- NOTES.md`, the new tab is closed immediately.
             -- This works around that.
             if not is_entering_new_tab then
               instance.close({ save_size = false })
@@ -915,24 +915,37 @@ function mod.setup(options)
 
       for _, instance in ipairs(instances) do
         if instance.does_own_buffer(closing_bufnr) then
-          local new_buffers = vim.tbl_filter(function(b)
+          --- Remove the buffer from the instance.
+          instance.state.buffers = vim.tbl_filter(function(b)
             return b ~= closing_bufnr
           end, instance.state.buffers)
 
-          --- TODO While it makes sense to do this here, it results in
-          --- nvim-tree closing when a tab is closed.
-          -- instance.state.is_open = false
-          instance.state.previous_bufnr = new_buffers[#new_buffers] or -1
-          instance.state.buffers = new_buffers
-
+          --- Remove any windows that were using the buffer.
           for winid, bufnr in pairs(instance.state.windows_and_buffers) do
             if bufnr == closing_bufnr then
               instance.state.windows_and_buffers[winid] = nil
             end
           end
 
-          if instance.state.previous_bufnr ~= -1 and instance.state.is_open then
-            instance.open({ focus = false })
+          --- Make sure previous_bufnr isn't set to an invalid buffer.
+          instance.state.previous_bufnr = instance.state.buffers[#instance.state.buffers]
+            or -1
+
+          --- If there is an alternative buffer ...
+          if instance.state.previous_bufnr ~= -1 then
+            --- ... and the drawer was open AND has should_reuse_previous_bufnr
+            --- enabled, then call open. That makes the previous buffer appear.
+            if
+              instance.state.is_open
+              and instance.opts.should_reuse_previous_bufnr
+            then
+              instance.open({ mode = 'previous_or_new', focus = false })
+            end
+          else
+            --- Otherwise, close the drawer.
+            if instance.opts.should_close_on_bufwipeout then
+              instance.state.is_open = false
+            end
           end
 
           -- TODO Not sure if this is useful. Technically, the drawer will be

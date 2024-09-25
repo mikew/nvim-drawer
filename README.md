@@ -161,6 +161,7 @@ drawer.create_drawer({
   size = 40,
   position = 'right',
   should_reuse_previous_bufnr = false,
+  should_close_on_bufwipeout = false,
 
   on_vim_enter = function(event)
     --- Open the drawer on startup.

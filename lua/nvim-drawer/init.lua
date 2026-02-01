@@ -988,6 +988,7 @@ function mod.setup(options)
   vim.api.nvim_create_autocmd('WinClosed', {
     desc = 'nvim-drawer: Close tab when all non-drawers are closed',
     group = drawer_augroup,
+    nested = true,
     callback = function(event)
       --- @type integer
       --- @diagnostic disable-next-line: assign-type-mismatch

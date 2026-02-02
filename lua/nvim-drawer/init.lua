@@ -91,7 +91,7 @@ local current_options = default_options
 --- @type NvimDrawerInstance[]
 local instances = {}
 
-function get_sorted_instances()
+local function get_sorted_instances()
   --- @type NvimDrawerInstance[]
   local sorted_instances = {}
 

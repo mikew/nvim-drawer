@@ -840,18 +840,20 @@ function mod.setup(options)
   --   end
   -- end, { noremap = true })
 
-  vim.api.nvim_create_autocmd('VimEnter', {
-    desc = 'nvim-drawer: Run on_vim_enter',
-    group = drawer_augroup,
-    once = true,
-    callback = function()
-      for _, instance in ipairs(instances) do
-        if instance.opts.on_vim_enter then
-          instance.opts.on_vim_enter({ instance = instance })
+  if not vim.v.vim_did_enter then
+    vim.api.nvim_create_autocmd('VimEnter', {
+      desc = 'nvim-drawer: Run on_vim_enter',
+      group = drawer_augroup,
+      once = true,
+      callback = function()
+        for _, instance in ipairs(instances) do
+          if instance.opts.on_vim_enter then
+            instance.opts.on_vim_enter({ instance = instance })
+          end
         end
-      end
-    end,
-  })
+      end,
+    })
+  end
 
   vim.api.nvim_create_autocmd('TabEnter', {
     desc = 'nvim-drawer: Restore drawers',

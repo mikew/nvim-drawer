@@ -153,6 +153,7 @@ end
 --- ```
 --- @param opts NvimDrawerCreateOptions
 function mod.create_drawer(opts)
+  --- @type NvimDrawerCreateOptions
   opts = vim.tbl_extend('force', {
     should_reuse_previous_bufnr = true,
     should_claim_new_window = true,
@@ -199,6 +200,7 @@ function mod.create_drawer(opts)
   --- ```
   --- @param open_opts? NvimDrawerOpenOptions
   function instance.open(open_opts)
+    --- @type NvimDrawerOpenOptions
     open_opts = vim.tbl_extend(
       'force',
       { focus = false, mode = 'previous_or_new' },
@@ -222,7 +224,7 @@ function mod.create_drawer(opts)
 
     -- ... and finally if we are trying to make a new window, we just force it
     -- to -1 so a buffer will be created.
-    if opts.mode == 'new' then
+    if open_opts.mode == 'new' then
       bufnr = -1
     end
 
@@ -293,7 +295,7 @@ function mod.create_drawer(opts)
       end)
     end
 
-    if opts.focus then
+    if open_opts.focus then
       vim.api.nvim_set_current_win(winid)
     end
 
@@ -579,6 +581,7 @@ function mod.create_drawer(opts)
   --- ```
   --- @param close_opts? NvimDrawerCloseOptions
   function instance.close(close_opts)
+    --- @type NvimDrawerCloseOptions
     close_opts = vim.tbl_extend('force', { save_size = true }, close_opts or {})
 
     try_callback('on_will_close', { instance = instance })
@@ -612,6 +615,7 @@ function mod.create_drawer(opts)
   --- ```
   --- @param toggle_opts? NvimDrawerToggleOptions
   function instance.toggle(toggle_opts)
+    --- @type NvimDrawerToggleOptions
     toggle_opts = vim.tbl_extend('force', { open = nil }, toggle_opts or {})
 
     if instance.state.is_open then

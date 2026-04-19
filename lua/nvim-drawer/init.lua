@@ -88,6 +88,8 @@ local default_options = {
 
 local current_options = default_options
 
+local did_vim_enter_already = false
+
 --- @type NvimDrawerInstance[]
 local instances = {}
 
@@ -789,6 +791,12 @@ function mod.create_drawer(opts)
 
   table.insert(instances, instance)
 
+  if did_vim_enter_already then
+    if instance.opts.on_vim_enter then
+      instance.opts.on_vim_enter({ instance = instance })
+    end
+  end
+
   return instance
 end
 
@@ -837,6 +845,8 @@ function mod.setup(options)
           instance.opts.on_vim_enter({ instance = instance })
         end
       end
+
+      did_vim_enter_already = true
     end,
   })
 

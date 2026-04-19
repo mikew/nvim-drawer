@@ -199,12 +199,12 @@ function mod.create_drawer(opts)
   --- --- Open a new tab and focus it.
   --- example_drawer.open({ mode = 'new', focus = true })
   --- ```
-  --- @param opts? NvimDrawerOpenOptions
-  function instance.open(opts)
-    opts = vim.tbl_extend(
+  --- @param open_opts? NvimDrawerOpenOptions
+  function instance.open(open_opts)
+    open_opts = vim.tbl_extend(
       'force',
       { focus = false, mode = 'previous_or_new' },
-      opts or {}
+      open_opts or {}
     )
 
     instance.state.is_open = true
@@ -309,10 +309,13 @@ function mod.create_drawer(opts)
 
     instance.store_buffer_info(winid)
 
-    for _, instance in ipairs(get_sorted_instances()) do
-      local drawer_winid = instance.get_winid()
+    for _, drawer_instance in ipairs(get_sorted_instances()) do
+      local drawer_winid = drawer_instance.get_winid()
       if drawer_winid ~= -1 then
-        vim.api.nvim_win_set_config(drawer_winid, instance.build_win_config())
+        vim.api.nvim_win_set_config(
+          drawer_winid,
+          drawer_instance.build_win_config()
+        )
       end
     end
   end
@@ -576,9 +579,9 @@ function mod.create_drawer(opts)
   --- --- Don't save the size of the drawer.
   --- example_drawer.close({ save_size = false })
   --- ```
-  --- @param opts? NvimDrawerCloseOptions
-  function instance.close(opts)
-    opts = vim.tbl_extend('force', { save_size = true }, opts or {})
+  --- @param close_opts? NvimDrawerCloseOptions
+  function instance.close(close_opts)
+    close_opts = vim.tbl_extend('force', { save_size = true }, close_opts or {})
 
     try_callback('on_will_close', { instance = instance })
 
@@ -590,7 +593,7 @@ function mod.create_drawer(opts)
       return
     end
 
-    if opts.save_size then
+    if close_opts.save_size then
       instance.state.size = instance.get_size()
     end
 
@@ -609,14 +612,14 @@ function mod.create_drawer(opts)
   --- --- Focus the drawer when opening it.
   --- example_drawer.toggle({ open = { focus = true } })
   --- ```
-  --- @param opts? NvimDrawerToggleOptions
-  function instance.toggle(opts)
-    opts = vim.tbl_extend('force', { open = nil }, opts or {})
+  --- @param toggle_opts? NvimDrawerToggleOptions
+  function instance.toggle(toggle_opts)
+    toggle_opts = vim.tbl_extend('force', { open = nil }, toggle_opts or {})
 
     if instance.state.is_open then
       instance.close({ save_size = true })
     else
-      instance.open(opts.open)
+      instance.open(toggle_opts.open)
     end
   end
 

@@ -190,7 +190,7 @@ function NvimDrawerInstance.claim(winid: integer)
 ## close
 
 ```lua
-function NvimDrawerInstance.close(opts?: NvimDrawerCloseOptions)
+function NvimDrawerInstance.close(close_opts?: NvimDrawerCloseOptions)
 ```
 
 Close the drawer. By default, the size of the drawer is saved.
@@ -299,7 +299,7 @@ Check if the drawer is focused.
 ## open
 
 ```lua
-function NvimDrawerInstance.open(opts?: NvimDrawerOpenOptions)
+function NvimDrawerInstance.open(open_opts?: NvimDrawerOpenOptions)
 ```
 
 Open the drawer.
@@ -325,7 +325,7 @@ Store the current window and buffer information.
 ## toggle
 
 ```lua
-function NvimDrawerInstance.toggle(opts?: NvimDrawerToggleOptions)
+function NvimDrawerInstance.toggle(toggle_opts?: NvimDrawerToggleOptions)
 ```
 
 Toggle the drawer. Also lets you pass options to open the drawer.
@@ -480,6 +480,8 @@ NvimDrawerOpenOptions?
 ---
 
 # NvimDrawerWindowConfig
+
+Extends `vim.api.keyset.win_config`
 
 ## anchor
 

@@ -153,6 +153,7 @@ end
 --- ```
 --- @param opts NvimDrawerCreateOptions
 function mod.create_drawer(opts)
+  --- @type NvimDrawerCreateOptions
   opts = vim.tbl_extend('force', {
     should_reuse_previous_bufnr = true,
     should_claim_new_window = true,
@@ -197,12 +198,13 @@ function mod.create_drawer(opts)
   --- --- Open a new tab and focus it.
   --- example_drawer.open({ mode = 'new', focus = true })
   --- ```
-  --- @param opts? NvimDrawerOpenOptions
-  function instance.open(opts)
-    opts = vim.tbl_extend(
+  --- @param open_opts? NvimDrawerOpenOptions
+  function instance.open(open_opts)
+    --- @type NvimDrawerOpenOptions
+    open_opts = vim.tbl_extend(
       'force',
       { focus = false, mode = 'previous_or_new' },
-      opts or {}
+      open_opts or {}
     )
 
     instance.state.is_open = true
@@ -222,7 +224,7 @@ function mod.create_drawer(opts)
 
     -- ... and finally if we are trying to make a new window, we just force it
     -- to -1 so a buffer will be created.
-    if opts.mode == 'new' then
+    if open_opts.mode == 'new' then
       bufnr = -1
     end
 
@@ -293,7 +295,7 @@ function mod.create_drawer(opts)
       end)
     end
 
-    if opts.focus then
+    if open_opts.focus then
       vim.api.nvim_set_current_win(winid)
     end
 
@@ -307,10 +309,13 @@ function mod.create_drawer(opts)
 
     instance.store_buffer_info(winid)
 
-    for _, instance in ipairs(get_sorted_instances()) do
-      local drawer_winid = instance.get_winid()
+    for _, drawer_instance in ipairs(get_sorted_instances()) do
+      local drawer_winid = drawer_instance.get_winid()
       if drawer_winid ~= -1 then
-        vim.api.nvim_win_set_config(drawer_winid, instance.build_win_config())
+        vim.api.nvim_win_set_config(
+          drawer_winid,
+          drawer_instance.build_win_config()
+        )
       end
     end
   end
@@ -574,9 +579,10 @@ function mod.create_drawer(opts)
   --- --- Don't save the size of the drawer.
   --- example_drawer.close({ save_size = false })
   --- ```
-  --- @param opts? NvimDrawerCloseOptions
-  function instance.close(opts)
-    opts = vim.tbl_extend('force', { save_size = true }, opts or {})
+  --- @param close_opts? NvimDrawerCloseOptions
+  function instance.close(close_opts)
+    --- @type NvimDrawerCloseOptions
+    close_opts = vim.tbl_extend('force', { save_size = true }, close_opts or {})
 
     try_callback('on_will_close', { instance = instance })
 
@@ -588,7 +594,7 @@ function mod.create_drawer(opts)
       return
     end
 
-    if opts.save_size then
+    if close_opts.save_size then
       instance.state.size = instance.get_size()
     end
 
@@ -607,14 +613,15 @@ function mod.create_drawer(opts)
   --- --- Focus the drawer when opening it.
   --- example_drawer.toggle({ open = { focus = true } })
   --- ```
-  --- @param opts? NvimDrawerToggleOptions
-  function instance.toggle(opts)
-    opts = vim.tbl_extend('force', { open = nil }, opts or {})
+  --- @param toggle_opts? NvimDrawerToggleOptions
+  function instance.toggle(toggle_opts)
+    --- @type NvimDrawerToggleOptions
+    toggle_opts = vim.tbl_extend('force', { open = nil }, toggle_opts or {})
 
     if instance.state.is_open then
       instance.close({ save_size = true })
     else
-      instance.open(opts.open)
+      instance.open(toggle_opts.open)
     end
   end
 
@@ -789,6 +796,12 @@ function mod.create_drawer(opts)
 
   table.insert(instances, instance)
 
+  if vim.v.vim_did_enter then
+    if instance.opts.on_vim_enter then
+      instance.opts.on_vim_enter({ instance = instance })
+    end
+  end
+
   return instance
 end
 
@@ -827,18 +840,20 @@ function mod.setup(options)
   --   end
   -- end, { noremap = true })
 
-  vim.api.nvim_create_autocmd('VimEnter', {
-    desc = 'nvim-drawer: Run on_vim_enter',
-    group = drawer_augroup,
-    once = true,
-    callback = function()
-      for _, instance in ipairs(instances) do
-        if instance.opts.on_vim_enter then
-          instance.opts.on_vim_enter({ instance = instance })
+  if not vim.v.vim_did_enter then
+    vim.api.nvim_create_autocmd('VimEnter', {
+      desc = 'nvim-drawer: Run on_vim_enter',
+      group = drawer_augroup,
+      once = true,
+      callback = function()
+        for _, instance in ipairs(instances) do
+          if instance.opts.on_vim_enter then
+            instance.opts.on_vim_enter({ instance = instance })
+          end
         end
-      end
-    end,
-  })
+      end,
+    })
+  end
 
   vim.api.nvim_create_autocmd('TabEnter', {
     desc = 'nvim-drawer: Restore drawers',
